@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>mybandecopal</title>
+  <meta name="description" content="Cardápio do dia dos restaurantes da USP com calorias e macros estimados pela tabela TACO.">
+  <meta name="theme-color" content="#f6f5f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121412" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">mybandecopal</div>
+    <button class="chip" id="restaurantBtn" aria-haspopup="dialog">
+      <span id="restaurantName">Área 1 · São Carlos</span>
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </header>
+
+  <nav class="days" id="days" aria-label="Dia da semana"></nav>
+
+  <div class="meal-toggle" role="tablist" aria-label="Refeição">
+    <button role="tab" data-meal="lunch" aria-selected="true">Almoço</button>
+    <button role="tab" data-meal="dinner" aria-selected="false">Jantar</button>
+  </div>
+
+  <main id="main">
+    <section class="summary" id="summary" aria-live="polite"></section>
+    <div id="sections"></div>
+
+    <section id="bottom" hidden>
+      <div class="rate-card">
+        <h2>Como estava a refeição?</h2>
+        <p class="rate-sub">Toque nas estrelas. Fica salvo pra ajudar quem vem depois.</p>
+        <div id="ratings"></div>
+      </div>
+
+      <div class="export">
+        <button class="export-btn" id="mfpBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Enviar pro MyFitnessPal
+        </button>
+        <p class="export-tip" id="mfpTip" hidden></p>
+      </div>
+    </section>
+  </main>
+
+  <div class="sticky-total" id="stickyTotal" aria-hidden="true"></div>
+
+  <footer class="foot">
+    <button class="link" id="resetBtn">Restaurar porções médias</button>
+    <p>Estimativa a partir da <a href="https://nepa.unicamp.br/" target="_blank" rel="noopener">TACO 4ª ed.</a> (NEPA/UNICAMP), com receitas aproximadas dos pratos do bandejão. Porções médias calibradas pelas calorias publicadas pela SAS. Não substitui orientação de nutricionista.</p>
+    <p>Cardápio: <span id="obs">SAS/PRIP – USP</span></p>
+    <p id="repoLink">Projeto de código aberto · <a href="https://github.com/Fabio-araujo-silva/mybandecopal" target="_blank" rel="noopener">ver no GitHub</a>. Não é um app oficial da USP.</p>
+  </footer>
+
+  <dialog class="sheet" id="restaurantSheet" aria-label="Escolher restaurante">
+    <div class="sheet-head">
+      <strong>Restaurante</strong>
+      <button class="icon-btn" data-close aria-label="Fechar">✕</button>
+    </div>
+    <div class="sheet-body" id="restaurantList"></div>
+  </dialog>
+
+  <dialog class="sheet" id="foodSheet" aria-label="Trocar alimento">
+    <div class="sheet-head">
+      <strong id="foodSheetTitle">Trocar alimento</strong>
+      <button class="icon-btn" data-close aria-label="Fechar">✕</button>
+    </div>
+    <div class="sheet-body">
+      <input type="search" id="foodSearch" placeholder="Buscar na TACO (ex.: frango, arroz)" autocomplete="off">
+      <button class="link" id="foodReset">Voltar à estimativa padrão</button>
+      <ul class="food-results" id="foodResults"></ul>
+    </div>
+  </dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

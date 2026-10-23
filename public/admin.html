@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>mybandecopal · admin</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#f6f5f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121412" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --bg:#f6f5f1; --card:#fff; --ink:#1a1c1a; --muted:#6d716c; --faint:#a4a8a2;
+      --line:#e7e6e0; --soft:#efeee8; --accent:#1f6f5c; --prot:#d9573b; --carb:#e0a224; --fat:#4a7fd6;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) { :root {
+      --bg:#121412; --card:#1b1e1b; --ink:#eceeea; --muted:#9aa09a; --faint:#5f655f;
+      --line:#2a2e2a; --soft:#232723; --accent:#5cc4a6; --prot:#f07b5f; --carb:#f2c050; --fat:#7ea8f0;
+      color-scheme: dark;
+    } }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; font-feature-settings:"tnum" 1; -webkit-font-smoothing:antialiased; }
+    .wrap { max-width:720px; margin:0 auto; padding:16px 16px 60px; }
+    h1 { font-size:20px; letter-spacing:-.02em; margin:14px 2px 2px; }
+    .sub { color:var(--muted); font-size:13px; margin:0 2px 18px; }
+    button { font:inherit; color:inherit; cursor:pointer; }
+    a { color:var(--accent); }
+    /* login */
+    .login { max-width:340px; margin:14vh auto 0; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:22px; }
+    .login h1 { margin:0 0 4px; }
+    .login input { width:100%; font:inherit; padding:11px 13px; border:1px solid var(--line); border-radius:11px; background:var(--bg); color:var(--ink); margin:14px 0 10px; }
+    .login button { width:100%; padding:11px; border:0; border-radius:11px; background:var(--accent); color:#fff; font-weight:600; }
+    .err { color:var(--prot); font-size:13px; min-height:18px; margin:2px 0 0; }
+    /* cards */
+    .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); margin-bottom:10px; }
+    .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; }
+    .kpi .n { font-size:28px; font-weight:700; letter-spacing:-.02em; line-height:1.1; }
+    .kpi .n.live { color:var(--accent); }
+    .kpi .l { font-size:12px; color:var(--muted); margin-top:2px; }
+    .panel { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-top:14px; }
+    .panel h2 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 12px; }
+    table { width:100%; border-collapse:collapse; font-size:13.5px; }
+    th,td { text-align:left; padding:7px 6px; border-bottom:1px solid var(--line); }
+    th { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; }
+    td.num,th.num { text-align:right; font-variant-numeric:tabular-nums; }
+    .muted { color:var(--muted); }
+    .bars { display:flex; align-items:flex-end; gap:3px; height:90px; margin-top:4px; }
+    .bars .col { flex:1; display:flex; flex-direction:column; justify-content:flex-end; gap:2px; min-width:0; }
+    .bars .bar { background:var(--accent); border-radius:3px 3px 0 0; min-height:2px; }
+    .bars .lab { font-size:9px; color:var(--faint); text-align:center; white-space:nowrap; overflow:hidden; }
+    .stars { color:var(--carb); letter-spacing:1px; }
+    .pill { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:var(--soft); color:var(--muted); }
+    .ok { color:var(--accent); } .bad { color:var(--prot); }
+    .toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+    .toolbar button { font-size:13px; color:var(--muted); background:none; border:0; }
+    .hint { font-size:12px; color:var(--faint); margin-top:6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap" id="app"><p class="muted">Carregando…</p></div>
+
+  <script>
+    const $ = (s, r = document) => r.querySelector(s);
+    const app = $('#app');
+    const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+    const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
+    const api = (action, opts) => fetch(`/api/admin?action=${action}`, opts).then(async (r) => ({ status: r.status, body: await r.json().catch(() => ({})) }));
+
+    async function boot() {
+      const { body } = await api('session');
+      if (!body.configured) return renderNotConfigured();
+      if (!body.authed) return renderLogin();
+      renderDashboard();
+    }
+
+    function renderNotConfigured() {
+      app.innerHTML = `<div class="login"><h1>Admin</h1>
+        <p class="sub">Falta definir a senha. Configure a variável de ambiente <b>ADMIN_PASSWORD</b> (mín. 8 caracteres) no projeto da Vercel e publique de novo.</p></div>`;
+    }
+
+    function renderLogin(msg = '') {
+      app.innerHTML = `<form class="login" id="f">
+        <h1>mybandecopal</h1><p class="sub">Painel de administração</p>
+        <input type="password" id="pw" placeholder="Senha" autocomplete="current-password" autofocus>
+        <button type="submit">Entrar</button>
+        <p class="err" id="e">${esc(msg)}</p>
+      </form>`;
+      $('#f').onsubmit = async (ev) => {
+        ev.preventDefault();
+        $('#e').textContent = '';
+        const { status, body } = await api('login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('#pw').value }) });
+        if (status === 200) renderDashboard();
+        else $('#e').textContent = body.error || 'Erro ao entrar.';
+      };
+    }
+
+    async function renderDashboard(days = 30) {
+      app.innerHTML = '<p class="muted">Carregando dados…</p>';
+      const { status, body: s } = await api(`stats&days=${days}`);
+      if (status !== 200) return renderLogin(s.error ? `Sessão expirou (${s.error}).` : 'Faça login de novo.');
+
+      const maxV = Math.max(1, ...s.perDay.map((d) => d.views));
+      const bars = s.perDay.map((d) => {
+        const day = d.date.slice(8) + '/' + d.date.slice(5, 7);
+        return `<div class="col" title="${d.date}: ${d.visitors} visitantes, ${d.views} aberturas">
+          <div class="bar" style="height:${Math.round((d.views / maxV) * 84)}px"></div><div class="lab">${day}</div></div>`;
+      }).join('');
+
+      const restNames = { '2':'Área 1 (SC)','3':'Área 2 (SC)','4':'CRHEA (SC)','6':'Central','7':'PUSP-CB','8':'Física','9':'Químicas','11':'Fac. Saúde Pública','12':'Enfermagem','13':'EACH','14':'Direito','17':'EEL Área 1','18':'Fac. Medicina','19':'Central RP','20':'Bauru','23':'EEL Área 2','1':'Piracicaba','5':'Pirassununga' };
+      const rankRows = (obj, name) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,12)
+        .map(([k,v]) => `<tr><td>${esc(name ? name(k) : k)}</td><td class="num">${fmt(v)}</td></tr>`).join('') || '<tr><td class="muted" colspan="2">sem dados ainda</td></tr>';
+
+      const catName = { proteina:'Proteína', guarnicao:'Guarnição', sobremesa:'Sobremesa', outro:'Outro' };
+      const ratingRows = s.ratings.length ? s.ratings.slice(0, 40).map((r) => {
+        const full = Math.round(r.avg);
+        return `<tr><td><span class="pill">${catName[r.cat]||r.cat}</span> ${esc(r.label)}</td>
+          <td class="num"><span class="stars">${'★'.repeat(full)}${'☆'.repeat(5-full)}</span> ${r.avg.toFixed(2)}</td>
+          <td class="num">${fmt(r.count)}</td></tr>`;
+      }).join('') : '<tr><td class="muted" colspan="3">ninguém avaliou ainda</td></tr>';
+
+      const portionRows = s.portions.slice(0, 25).map((p) => {
+        const diff = p.defaultGrams ? Math.round(((p.avgGrams - p.defaultGrams) / p.defaultGrams) * 100) : null;
+        return `<tr><td>${esc(p.dish)}</td><td class="num">${fmt(p.edits)}</td><td class="num">${fmt(p.avgGrams)} g</td>
+          <td class="num ${diff>0?'':'muted'}">${p.defaultGrams != null ? `${fmt(p.defaultGrams)} g${diff!=null?` (${diff>0?'+':''}${diff}%)`:''}` : '—'}</td></tr>`;
+      }).join('') || '<tr><td class="muted" colspan="4">sem ajustes ainda</td></tr>';
+
+      const genRows = s.generic.slice(0, 40).map((g) => `<tr><td>${esc(g.text)}</td><td class="muted">${esc(g.role||'')}</td><td class="muted">${esc((g.at||'').slice(0,10))}</td></tr>`).join('')
+        || '<tr><td class="muted" colspan="3">tudo reconhecido 🎉</td></tr>';
+
+      const u = s.usp;
+      const lastTxt = u.last ? `${u.last.ok ? '<span class="ok">ok</span>' : '<span class="bad">falhou</span>'} · ${u.last.ms} ms · ${new Date(u.last.at).toLocaleString('pt-BR')}` : 'sem registro';
+      const errRows = u.errors.length ? u.errors.map((e) => `<tr><td class="bad">${esc(e.error)}</td><td class="muted">rest ${esc(e.restaurant)}</td><td class="muted">${esc((e.at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('') : '';
+
+      const choiceRows = Object.entries(s.choices).sort((a,b)=>b[1]-a[1]).slice(0,20)
+        .map(([k,v]) => `<tr><td>${esc(k)}</td><td class="num">${fmt(v)}</td></tr>`).join('') || '<tr><td class="muted" colspan="2">—</td></tr>';
+
+      const backendWarn = /sem Redis/.test(s.backend) ? ` <span class="pill" style="color:var(--prot)">dados não persistem</span>` : '';
+
+      app.innerHTML = `
+        <div class="toolbar">
+          <div><h1 style="margin:0">Painel</h1></div>
+          <div><button id="refresh">↻ atualizar</button> · <button id="logout">sair</button></div>
+        </div>
+        <p class="sub">Armazenamento: ${esc(s.backend)}${backendWarn} · atualizado ${new Date(s.generatedAt).toLocaleTimeString('pt-BR')}</p>
+
+        <div class="grid">
+          <div class="kpi"><div class="n live">${fmt(s.activeNow)}</div><div class="l">online agora (5 min)</div></div>
+          <div class="kpi"><div class="n">${fmt(s.visitors7d)}</div><div class="l">visitantes · 7 dias</div></div>
+          <div class="kpi"><div class="n">${fmt(s.visitors30d)}</div><div class="l">visitantes · 30 dias</div></div>
+          <div class="kpi"><div class="n">${fmt(s.visitorsAllTime)}</div><div class="l">visitantes · total</div></div>
+        </div>
+        <div class="grid">
+          <div class="kpi"><div class="n">${fmt(s.today.visitors)}</div><div class="l">visitantes hoje</div></div>
+          <div class="kpi"><div class="n">${fmt(s.today.views)}</div><div class="l">aberturas hoje</div></div>
+          <div class="kpi"><div class="n">${fmt(s.today.newVisitors)}</div><div class="l">novos hoje</div></div>
+          <div class="kpi"><div class="n">${fmt((s.meals.lunch||0))}/${fmt((s.meals.dinner||0))}</div><div class="l">almoço / jantar (30d)</div></div>
+        </div>
+
+        <div class="panel"><h2>Aberturas por dia (${days}d)</h2><div class="bars">${bars}</div></div>
+
+        <div class="panel"><h2>Avaliações da comida (estrelas)</h2>
+          <table><thead><tr><th>Prato</th><th class="num">média</th><th class="num">votos</th></tr></thead><tbody>${ratingRows}</tbody></table>
+          <p class="hint">Coletando. A nota segue o prato — some todos os dias em que ele apareceu.</p>
+        </div>
+
+        <div class="panel"><h2>Saúde da API da USP</h2>
+          <p style="margin:0 0 8px">Última chamada: ${lastTxt}</p>
+          <p class="muted" style="margin:0">7 dias: <span class="ok">${fmt(u.ok7d)} ok</span> · <span class="${u.err7d?'bad':''}">${fmt(u.err7d)} erros</span>${u.avgMs!=null?` · ${u.avgMs} ms média`:''}</p>
+          ${errRows ? `<table style="margin-top:10px"><thead><tr><th>Erro recente</th><th></th><th></th></tr></thead><tbody>${errRows}</tbody></table>` : ''}
+          <p class="hint">Só conta quando o cache da Vercel expira (a cada ~15 min por restaurante).</p>
+        </div>
+
+        <div class="panel"><h2>Porções que a galera escolhe (calibração)</h2>
+          <table><thead><tr><th>Prato</th><th class="num">ajustes</th><th class="num">média</th><th class="num">padrão</th></tr></thead><tbody>${portionRows}</tbody></table>
+        </div>
+
+        <div class="panel"><h2>Pratos não reconhecidos</h2>
+          <table><thead><tr><th>Texto do cardápio</th><th>onde</th><th>visto</th></tr></thead><tbody>${genRows}</tbody></table>
+          <p class="hint">Vire regra em <code>public/nutrition.js</code>.</p>
+        </div>
+
+        <div class="grid" style="margin-top:14px">
+          <div class="panel" style="margin:0"><h2>Restaurantes (30d)</h2><table><tbody>${rankRows(s.restaurants, (k)=>restNames[k]||('#'+k))}</tbody></table></div>
+          <div class="panel" style="margin:0"><h2>Escolhas</h2><table><tbody>${choiceRows}</tbody></table></div>
+        </div>
+        <div class="panel"><h2>Dispositivos (30d)</h2><table><tbody>${rankRows(s.devices)}</tbody></table></div>
+      `;
+      $('#logout').onclick = async () => { await api('logout', { method: 'POST' }); renderLogin('Você saiu.'); };
+      $('#refresh').onclick = () => renderDashboard(days);
+    }
+
+    boot();
+  </script>
+</body>
+</html>
