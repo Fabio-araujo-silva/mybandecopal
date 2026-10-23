@@ -113,7 +113,7 @@
 
       const catName = { proteina:'Proteína', guarnicao:'Guarnição', sobremesa:'Sobremesa', outro:'Outro' };
       const ratingRows = s.ratings.length ? s.ratings.slice(0, 40).map((r) => {
-        const full = Math.round(r.avg);
+        const full = Math.max(0, Math.min(5, Math.round(r.avg)));
         return `<tr><td><span class="pill">${catName[r.cat]||r.cat}</span> ${esc(r.label)}</td>
           <td class="num"><span class="stars">${'★'.repeat(full)}${'☆'.repeat(5-full)}</span> ${r.avg.toFixed(2)}</td>
           <td class="num">${fmt(r.count)}</td></tr>`;

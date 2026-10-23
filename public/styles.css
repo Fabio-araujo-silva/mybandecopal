@@ -217,6 +217,11 @@ main { padding: 14px 16px 0; }
 .sticky-total .m { display: flex; gap: 12px; color: var(--muted); }
 .sticky-total .m span::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 2px; background: var(--c); margin-right: 5px; vertical-align: 1px; }
 
+/* suco com/sem açúcar */
+.sugar { display: inline-flex; gap: 4px; margin-top: 9px; padding: 3px; border-radius: 999px; background: var(--soft); }
+.sugar button { font-size: 12.5px; padding: 5px 11px; border-radius: 999px; color: var(--muted); }
+.sugar button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+
 /* concha extra de molho, logo abaixo da proteína */
 .sauce {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -251,16 +256,6 @@ button.sauce:active { transform: scale(.99); }
 .star.on { color: var(--carb); }
 .star:active { transform: scale(1.25); }
 @media (hover: hover) { .stars:hover .star { color: var(--line); } .star:hover, .star:hover ~ .star { color: var(--line); } .stars:hover .star:hover, .stars .star:hover { color: var(--carb); } }
-
-/* exportar */
-.export { margin: 14px 2px 0; display: grid; gap: 8px; justify-items: start; }
-.export-btn {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-size: 13px; color: var(--muted); padding: 8px 12px;
-  border: 1px solid var(--line); border-radius: 999px; background: var(--card);
-}
-.export-btn:active { transform: scale(.97); }
-.export-tip { margin: 0; font-size: 12.5px; color: var(--muted); white-space: pre-line; line-height: 1.4; }
 
 .foot { padding: 26px 20px 10px; color: var(--muted); font-size: 12px; }
 .foot #repoLink { margin-top: 10px; }

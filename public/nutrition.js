@@ -25,8 +25,8 @@ export const EXTRAS = {
 // quando o prato tem molho, dá pra pedir uma concha a mais. Detecta o tipo pelo nome.
 export function sauceType(text) {
   const t = text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  if (/estrogonofe|stroganoff|strogonoff|fricasse|parmegiana|molho branco|gratinad|mostarda|\brose\b|quatro queijos|queijo|cremoso/.test(t)) return 'creme';
-  if (/\bmolho\b|ao sugo|provencal|acebolad|barbecue|ferrugem|shoyu|agridoce|cacarola|ensopad|ao vinho|pomodoro|bolonhesa|chinesa|\broti\b|madeira/.test(t)) return 'tomate';
+  if (/estrogonofe|stroganoff|strogonoff|fricasse|parmegiana|molho branco|ao molho de queijo|quatro queijos|cremoso/.test(t)) return 'creme';
+  if (/\bmolho\b|ao sugo|provencal|barbecue|ferrugem|shoyu|agridoce|cacarola|ensopad|ao vinho|pomodoro|bolonhesa|\broti\b|madeira/.test(t)) return 'tomate';
   return null;
 }
 
@@ -229,6 +229,9 @@ export const DISHES = {
   ameixa: d('fruta', 'Ameixa', [[172, 100]], M.un('porção', 100), 1, false),
   morango: d('fruta', 'Morango', [[239, 100]], M.un('porção', 100), 1, false),
   pessego: d('fruta', 'Pêssego', [[244, 100]], M.un('unidade', 110), 1, false),
+  maracuja: d('fruta', 'Maracujá', [[232, 100]], M.un('unidade', 120), 1, false),
+  acerola: d('fruta', 'Acerola', [[169, 100]], M.un('porção', 100), 1, false),
+  limao: d('fruta', 'Limão', [[220, 100]], M.un('unidade', 65), 1, false),
   salada_frutas: d('fruta', 'Salada de frutas', [[214, 25], [182, 25], [222, 25], [225, 25]], M.un('porção', 120), 1, false),
   fruta_generica: d('fruta', 'Fruta (genérico)', [[214, 50], [182, 50]], M.un('unidade', 100), 1, false),
 
@@ -270,6 +273,8 @@ export const DISHES = {
   minipao: d('pao', 'Minipão francês', [[53, 100]], M.un('unidade', 25), 0, false), // só entra por padrão em dia de hambúrguer (app.js)
   pao_integral: d('pao', 'Pão integral', [[52, 100]], M.un('unidade', 25), 0, false),
   refresco: d('bebida', 'Refresco adoçado', [['x:refresco', 100]], [['copo (200 ml)', 200], ['ml', 1]], 0, false),
+  // o refresco do bandejão tem ~39 kcal/200 ml com ou sem açúcar; a opção muda só o rótulo
+  refresco_zero: d('bebida', 'Refresco sem açúcar', [['x:refresco', 100]], [['copo (200 ml)', 200], ['ml', 1]], 0, false),
   suco_laranja: d('bebida', 'Suco de laranja natural', [[215, 100]], [['copo (200 ml)', 200], ['ml', 1]], 0, false),
   cafe: d('bebida', 'Café sem açúcar', [[471, 100]], [['xícara (50 ml)', 50], ['ml', 1]], 0, false),
 };
@@ -307,7 +312,7 @@ const RULES = [
   [/salada.*pepino/, 'pepino'],
   [/salada.*broto/, 'broto'],
   [/salada.*palmito/, 'palmito'],
-  [/vinagrete/, 'vinagrete'],
+  [/^vinagrete$|salada.*vinagrete|molho vinagrete/, 'vinagrete'],
   [/tabule/, 'tabule'],
   [/^salada/, 'salada_mix'],
 
@@ -333,7 +338,7 @@ const RULES = [
   [/brigadeir/, 'brigadeirao'],
   [/bolo.*chocolate|bolinho.*chocolate|roll.*chocolate|brownie/, 'bolo_chocolate'],
   [/bolo.*coco/, 'bolo_coco'],
-  [/bolo|bolinho|rocambole|roll/, 'bolo'],
+  [/\bbolo\b|bolinho|rocambole|\broll\b/, 'bolo'],
   [/cocada/, 'cocada'],
   [/pacoca/, 'pacoca'],
   [/pe de moleque/, 'pe_moleque'],
@@ -356,6 +361,7 @@ const RULES = [
   [/estrogonofe de (pvt|pts|soja)/, 'estrogonofe_pvt'],
   [/(pvt|pts|proteina de soja|soja texturizada).*azeitona/, 'pvt_azeitona'],
   [/(pvt|pts|proteina de soja|soja texturizada).*(legume|batata)/, 'pvt_legumes'],
+  [/lasanha.*(pvt|pts|soja)/, 'lasanha_legumes'],
   [/\b(pvt|pts)\b|proteina (texturizada|de soja)|soja texturizada/, 'pvt'],
   [/cass?oulet|cassulet/, 'cassoulet_veg'],
   [/puchero/, 'puchero_veg'],
@@ -380,6 +386,8 @@ const RULES = [
   // carnes
   [/feijoada/, 'feijoada'],
   [/carreteiro/, 'carreteiro'],
+  [/escondidinho/, 'escondidinho_carne'],
+  [/almondega de (pvt|pts|soja|ervilha|lentilha|legume|grao)/, 'pvt'],
   [/frango.*passarinho/, 'frango_passarinho'],
   [/frango.*(empanado|milanesa)|(empanado|milanesa).*frango|nuggets?/, 'frango_empanado'],
   [/fricasse/, 'frango_fricasse'],
@@ -480,6 +488,10 @@ const RULES = [
   [/tomate/, 'tomate'],
   [/palmito/, 'palmito'],
 
+  // bebidas antes das frutas, para "Suco de laranja/abacaxi" não virar fruta
+  [/suco de laranja natural|suco natural/, 'suco_laranja'],
+  [/\bsuco\b|refresco|refrigerante/, 'refresco'],
+
   // frutas
   [/laranja/, 'laranja'],
   [/mexerica|tangerina|ponkan|pokan|bergamota/, 'mexerica'],
@@ -498,6 +510,9 @@ const RULES = [
   [/ameixa/, 'ameixa'],
   [/morango/, 'morango'],
   [/pessego/, 'pessego'],
+  [/maracuja/, 'maracuja'],
+  [/acerola/, 'acerola'],
+  [/limao/, 'limao'],
   [/fruta/, 'fruta_generica'],
 
   // base, pão e bebida
@@ -506,6 +521,7 @@ const RULES = [
   [/^arroz/, 'arroz'],
   [/feijao preto/, 'feijao_preto'],
   [/feijao/, 'feijao'],
+  [/pao de mel|minibolo|mini bolo/, 'bolo'],
   [/mini ?pao|pao/, 'minipao'],
   [/suco de laranja natural|suco natural/, 'suco_laranja'],
   [/suco|refresco|refrigerante|bebida/, 'refresco'],
@@ -526,7 +542,7 @@ export function matchDish(text) {
 // Parser do texto do cardápio. Lida com os dois formatos que a USP usa:
 //   SP:  "Arroz/feijão/arroz integral\nFrango empanado\nOpção: Creme de ervilha\n..."
 //   SC:  "Arroz/Feijão/ Arroz integral/\nSaladas: Diversas/\n...\nSobremesa: Iogurte/Laranja/\nMini Pão e Suco"
-const LABEL = /^(op[cç][aã]o(?: vegetariana| vegana| (?:do )?prato principal)?|prato principal|sobremesas?|saladas?|guarni[cç][aã]o|acompanhamentos?|bebida)\s*:\s*/i;
+const LABEL = /^(op[cç][aã]o(?: vegetariana| vegana| (?:do )?prato principal)?|prato principal|sobremesas?|saladas?|guarni[cç][aã]o|acompanhamentos?|bebidas?|sucos?|refrescos?)\s*:\s*/i;
 
 // limpeza antes de quebrar em "/": "c/" vira "com", alergênicos e kcal saem do texto
 function preclean(raw) {
@@ -535,7 +551,7 @@ function preclean(raw) {
     .replace(/(\d{3,4})\s*kcal/gi, (_, n) => { kcal = Number(n); return ''; })
     .replace(/\((?:cont[eé]m|pode conter)[^)]*\)?/gi, '')
     .replace(/\bcont[eé]m\s+(?:lactose|gl[uú]ten|ovos?|soja|leite|trigo)(?:\s*(?:e|,|\/)\s*(?:lactose|gl[uú]ten|ovos?|soja|leite|trigo))*/gi, '')
-    .replace(/\b([cs])\/\s*/gi, (_, l) => (l.toLowerCase() === 'c' ? 'com ' : 'sem '));
+    .replace(/(^|\s)([cs])\/\s*/gi, (_, pre, l) => pre + (l.toLowerCase() === 'c' ? 'com ' : 'sem '));
   return { text, kcal };
 }
 
@@ -545,9 +561,14 @@ function labelRole(label) {
   if (l.startsWith('sobremesa')) return 'sobremesa';
   if (l.startsWith('salada')) return 'salada';
   if (l.startsWith('guarni') || l.startsWith('acompanha')) return 'guarnicao';
-  if (l.startsWith('bebida')) return 'bebida';
+  if (l.startsWith('bebida') || l.startsWith('suco') || l.startsWith('refresco')) return 'bebida';
   return 'principal';
 }
+
+// protege "/" dentro de parênteses para não quebrar "Frango (Coxa/Sobrecoxa)"
+const SLASH = '⁄';
+const protectParens = (s) => s.replace(/\([^)]*\)/g, (m) => m.replace(/\//g, SLASH));
+const restoreSlash = (s) => s.replace(new RegExp(SLASH, 'g'), '/');
 
 const KIND_ROLE = {
   base: 'base', proteina: 'principal', vegetariano: 'vegetariano', guarnicao: 'guarnicao',
@@ -571,8 +592,8 @@ export function parseMenu(text) {
     let rest = line.trim();
     const m = rest.match(LABEL);
     if (m) { lineLabel = m[1]; rest = rest.slice(m[0].length); }
-    for (let piece of rest.split('/')) {
-      piece = piece.trim().replace(/[.;,]+$/, '');
+    for (let piece of protectParens(rest).split('/')) {
+      piece = restoreSlash(piece).trim().replace(/[.;,]+$/, '');
       if (!piece) continue;
       let label = lineLabel;
       const pm = piece.match(LABEL);
@@ -595,11 +616,15 @@ export function parseMenu(text) {
     let role;
     if (key) {
       const kind = DISHES[key].kind;
-      role = roleFromLabel === 'vegetariano' || roleFromLabel === 'sobremesa' || roleFromLabel === 'salada'
-        ? roleFromLabel
-        : KIND_ROLE[kind];
-      // um "vegetariano" sem rótulo de opção (ex.: ovo frito) disputa o prato principal
-      if (role === 'principal' && roleFromLabel === 'vegetariano') role = 'vegetariano';
+      // rótulo explícito manda sobre o tipo do prato ("Prato principal: Lasanha à bolonhesa"
+      // não é sobremesa; "Guarnição: Creme de ervilha" não disputa o prato principal)
+      if (roleFromLabel) {
+        role = roleFromLabel;
+        // "Bebida/Suco: Abacaxi" é refresco, não a fruta
+        if (roleFromLabel === 'bebida' && kind !== 'bebida') key = 'refresco';
+      } else {
+        role = KIND_ROLE[kind];
+      }
     } else {
       role = roleFromLabel || (!principalSeen ? 'principal' : 'guarnicao');
       key = {

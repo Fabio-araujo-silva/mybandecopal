@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node dev-server.mjs",
     "build:taco": "node scripts/build-taco.mjs",
-    "check": "node scripts/check-menus.mjs"
+    "check": "node --env-file=.env scripts/check-menus.mjs"
   },
   "engines": {
     "node": ">=20"

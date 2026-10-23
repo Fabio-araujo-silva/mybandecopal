@@ -51,6 +51,7 @@ const state = {
   portions: store.get('portions-v3', {}), // { "restaurante|dd/mm/aaaa|lunch": { prato: { u, q } } }
   overrides: store.get('overrides', {}),
   ratings: store.get('ratings', {}), // { "frango à passarinho": 4 } — a nota segue o prato
+  sugarFree: store.get('sugarFree', false),
   choicePrefs: store.get('choices', {}),
   adjust: store.get('adjust', true),
   expanded: new Set(),
@@ -110,17 +111,24 @@ async function getJson(url) {
   return body;
 }
 
+let menuReq = 0;
 async function loadMenu() {
+  const seq = ++menuReq;          // ignora respostas de um restaurante já trocado
+  const id = state.restaurant.id;
   state.error = null;
   state.menu = null;
   state.manual = false;
   render();
-  try {
-    state.menu = await getJson(`/api/menu?id=${encodeURIComponent(state.restaurant.id)}`);
-    pickDefaultDay();
-  } catch (err) {
-    state.error = err.message;
+  // se a TACO não carregou antes (ex.: "tentar de novo"), tenta de novo agora
+  if (!state.db) {
+    try { const taco = await getJson('/taco.json'); state.taco = taco; state.db = createDb(taco); } catch { /* segue; menu ainda aparece */ }
   }
+  let menu = null, error = null;
+  try { menu = await getJson(`/api/menu?id=${encodeURIComponent(id)}`); } catch (err) { error = err.message; }
+  if (seq !== menuReq || id !== state.restaurant.id) return; // chegou tarde: outro restaurante foi escolhido
+  state.menu = menu;
+  state.error = error;
+  if (menu) pickDefaultDay();
   buildMeal();
   render();
 }
@@ -176,16 +184,22 @@ function isActive(it) {
 
 function itemBase(it) {
   const override = state.overrides[norm(it.text)];
-  return override != null && state.db.byId.has(override) ? override : it.key;
+  if (override != null && state.db.byId.has(override)) return override;
+  // suco/refresco: com ou sem açúcar (preferência da pessoa, vale para todas as refeições)
+  if (it.key === 'refresco' && state.sugarFree) return 'refresco_zero';
+  return it.key;
 }
 
 // pão só entra por padrão quando a refeição tem hambúrguer
 const isBread = (it) => DISHES[it.key].kind === 'pao';
 const hasBurger = () => (state.parsed?.items ?? []).some((x) => /hamb[uú]rg/i.test(x.text));
 
+// chave da porção salva: não muda ao trocar com/sem açúcar (a quantidade de copos continua a mesma)
+// inclui o texto do item: dois itens com o mesmo prato-base (ex.: dois purês) não compartilham porção
 function prefKey(it) {
-  const b = itemBase(it);
-  return typeof b === 'number' ? `t${b}` : b;
+  const override = state.overrides[norm(it.text)];
+  const base = override != null && state.db?.byId.has(override) ? `t${override}` : it.key;
+  return `${base}|${norm(it.text)}`;
 }
 
 // porções alteradas valem só para a refeição em que foram feitas (restaurante + dia + almoço/jantar);
@@ -300,7 +314,6 @@ function render() {
   renderSummary(summary, t);
   renderSections(sections);
   renderRatings();
-  renderExport(t);
   updateSticky(t);
 }
 
@@ -354,28 +367,6 @@ function beaconRate(payload) {
   try {
     fetch('/api/rate', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   } catch { /* sem conexão: a nota fica salva no navegador mesmo assim */ }
-}
-
-// ---------------------------------------------------------------- exportar p/ MyFitnessPal
-function renderExport(t) {
-  const btn = $('#mfpBtn');
-  btn.onclick = () => exportMfp(t);
-}
-
-function exportMfp(t) {
-  // O MyFitnessPal não tem importação direta por link para terceiros; o caminho que funciona
-  // é a "Adição rápida" (calorias + P/C/G). Mostramos os números prontos e copiamos se der.
-  const txt = `Bandejão ${state.restaurant.name} (${state.menu.days[state.dayIdx].date} ${state.meal === 'lunch' ? 'almoço' : 'jantar'})`
-    + ` — ${Math.round(t.kcal)} kcal · P ${t.p.toFixed(0)}g · C ${t.c.toFixed(0)}g · G ${t.g.toFixed(0)}g`;
-  const tip = $('#mfpTip');
-  tip.textContent = `No MyFitnessPal: Diário → + → Adição rápida. Use:\n${txt}`;
-  tip.hidden = false;
-  // tenta copiar em segundo plano (pode falhar sem foco/permissão; os números já estão à mostra)
-  Promise.resolve().then(() => navigator.clipboard?.writeText(txt))
-    .then(() => { tip.textContent = `Copiado ✓ — cole na Adição rápida do MyFitnessPal:\n${txt}`; })
-    .catch(() => {});
-  clearTimeout(exportMfp._t);
-  exportMfp._t = setTimeout(() => { tip.hidden = true; }, 12000);
 }
 
 let daysKey = '';
@@ -473,9 +464,10 @@ function renderItem(it) {
   const overridden = typeof base === 'number';
   const liquid = p.unit[0] === 'ml' || p.unit[0].startsWith('copo') || p.unit[0].startsWith('xícara');
   const amount = p.q > 0 ? ` · ${fmt(p.grams)} ${liquid ? 'ml' : 'g'}` : '';
+  const label = DISHES[typeof base === 'string' ? base : it.key].label;
   const ref = overridden
     ? `TACO: ${state.db.byId.get(base).n}`
-    : it.generic ? `estimativa genérica · ${dish.label}` : `≈ ${dish.label}`;
+    : it.generic ? `estimativa genérica · ${label}` : `≈ ${label}`;
   // − / + andam de 1 em 1 (de 10 em 10 em gramas); frações a pessoa digita
   const step = p.unit[1] === 1 ? 10 : 1;
   const open = state.expanded.has(it.id);
@@ -500,6 +492,10 @@ function renderItem(it) {
         <span>G ${fmt(n.g, 1)} g</span><span>Fibra ${fmt(n.f, 1)} g</span>
       </span>
     </div>
+    ${it.key === 'refresco' && !overridden ? `<div class="sugar" role="group" aria-label="Açúcar no suco">
+      <button data-act="sugar-off" aria-pressed="${!state.sugarFree}">com açúcar</button>
+      <button data-act="sugar-on" aria-pressed="${state.sugarFree}">sem açúcar</button>
+    </div>` : ''}
     ${it.sauce ? (() => {
       const sc = sauceCount(it);
       const sk = sauceNutrients(it).kcal;
@@ -535,6 +531,11 @@ function bindItem(el) {
       setSauce(it, +1);
     } else if (act === 'sauce-minus') {
       setSauce(it, -1);
+    } else if (act === 'sugar-on' || act === 'sugar-off') {
+      state.sugarFree = act === 'sugar-on';
+      store.set('sugarFree', state.sugarFree);
+      track.choice('suco', state.sugarFree ? 'sem-acucar' : 'com-acucar');
+      render();
     }
   });
   const qtyInput = el.querySelector('[data-act="qty"]');

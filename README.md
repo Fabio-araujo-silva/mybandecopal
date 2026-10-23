@@ -30,7 +30,6 @@ tia usa.
 - **Trocar alimento:** qualquer item pode ser substituído por um dos 591 alimentos da TACO.
 - **Avaliação em estrelas** da proteína, da guarnição e da sobremesa, sem login. A nota segue o
   prato: quando ele volta no cardápio, sua nota já está lá (e dá para mudar).
-- **Enviar pro MyFitnessPal:** mostra (e copia) os números prontos para a *Adição rápida* do app.
 - **Painel /admin** com login: pessoas online, visitantes por dia, avaliações, porções que o
   pessoal escolhe de verdade (para calibrar os padrões), pratos que o parser não reconheceu e a
   saúde da API da USP.
@@ -45,14 +44,7 @@ navegador ──► mybandecopal.vercel.app/api/menu ──► uspdigital.usp.br
                credenciais do app e faz cache)
 ```
 
-O cardápio vem da **mesma API que o app oficial Cardápio+ USP usa**. Ela não é pública nem
-documentada: cada pedido precisa de duas credenciais fixas do app, e a USP não libera CORS para o
-navegador. Por isso existe o proxy em `api/`, que roda no servidor, guarda o cardápio em cache por
-15 minutos e nunca expõe as credenciais para quem acessa o site.
-
-**As credenciais não estão neste repositório.** Elas ficam em variáveis de ambiente (`.env` local e
-painel da Vercel). Sem elas o site carrega, mas não consegue buscar o cardápio. Se a USP trocar
-essas credenciais ou os endereços, o site para de funcionar até alguém atualizar os valores.
+O cardápio vem da **mesma API que o app oficial Cardápio+ USP usa**.
 
 ### Estimativa nutricional
 

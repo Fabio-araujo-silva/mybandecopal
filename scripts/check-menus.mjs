@@ -52,7 +52,7 @@ if (withSas.length) {
   console.log(`com kcal da SAS: ${withSas.length} — diferença média da estimativa: ${(mean * 100).toFixed(1)}%`);
   for (const x of withSas.slice(0, 12)) console.log(`  ${x.r} ${x.date} ${x.meal}: SAS ${x.sas} · nossa ${x.est.kcal} (P${x.est.p} C${x.est.c} G${x.est.g})`);
 }
-const sc = rows.filter((x) => /SC/.test(x.r)).slice(0, 6);
+const sc = rows.filter((x) => /\(SC\)/.test(x.r)).slice(0, 6);
 for (const x of sc) console.log(`  ${x.r} ${x.date} ${x.meal}: nossa ${x.est.kcal} kcal (P${x.est.p} C${x.est.c} G${x.est.g})`);
 console.log(`\nitens não reconhecidos (${unknown.size}):`);
 for (const [t, n] of [...unknown].sort((a, b) => b[1] - a[1])) console.log(`  ${n}× ${t}`);
