@@ -71,6 +71,15 @@
     .chips button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
     .reg-now { margin:0 0 8px; font-size:14px; }
     .reg-now button { border:0; background:none; color:var(--prot); font-size:13px; margin-left:6px; }
+    /* pratos que mudaram e reports */
+    .link-btn { border:0; background:none; color:var(--accent); font-size:13px; padding:0 4px; }
+    .link-btn.bad { color:var(--prot); }
+    .aviso-row { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; padding:7px 0; border-bottom:1px solid var(--line); font-size:14px; }
+    .aviso-form, .rep-form { margin:8px 0 4px; }
+    .aviso-form input, .rep-form input { flex:1 1 180px; }
+    .rep { padding:10px 12px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; font-size:14px; }
+    .rep.ready { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 8%, var(--card)); }
+    .rep .muted { font-size:12.5px; margin-top:2px; }
   </style>
 </head>
 <body>
@@ -108,6 +117,7 @@
       data: {},
       saladas: [],          // [{ chave, nome }] das receitas
       pick: new Set(),      // saladas marcadas (ainda não salvas)
+      avisoForm: null,      // prato com o formulário de "marcar mudança" aberto
     };
     const isoToBr = (iso) => iso.split('-').reverse().join('/');
     const regField = () => `${isoToBr(reg.iso)}|${reg.meal}`;
@@ -137,6 +147,12 @@
         <div class="chips" id="saladaChips"></div>
         <button type="button" class="primary" id="saladaSave">Salvar saladas</button>
         <p class="hint">Sem nenhuma marcada, o app mostra "Saladas diversas" e faz a conta como antes.</p>
+        <h3>Pratos que mudaram</h3>
+        <div id="avisoList"><p class="muted">Carregando…</p></div>
+        <p class="hint">Marcar põe um "!" ao lado do prato no app, com o motivo. Com o prato que entrou no lugar, o app passa a mostrar (e calcular) o novo.</p>
+        <datalist id="motivos">
+          <option value="Acabou essa opção"><option value="Trocaram o prato"><option value="Prato diferente do cardápio"><option value="Acabou mais cedo">
+        </datalist>
         <h3>Últimos registros</h3>
         <table><tbody id="regList"></tbody></table>
       </div>`;
@@ -163,13 +179,133 @@
       syncChips();
       renderSaladaChips();
       const recent = Object.entries(reg.data)
-        .map(([field, r]) => [field, r, [r.suco?.at, r.saladas?.at].filter(Boolean).sort().pop() || ''])
+        .map(([field, r]) => [field, r, [r.suco?.at, r.saladas?.at, ...(r.avisos || []).map((a) => a.at)].filter(Boolean).sort().pop() || ''])
+        .filter(([, , at]) => at) // só mudanças da USP, sem nada registrado aqui: ficam fora
         .sort((a, b) => b[2].localeCompare(a[2])).slice(0, 8);
       $('#regList').innerHTML = recent.map(([field, r, at]) => {
         const [date, meal] = field.split('|');
         return `<tr><td>${esc(date.slice(0, 5))} · ${mealName[meal] || esc(meal)}</td><td>${esc(r.suco?.sabores || '—')}</td>
-          <td class="muted">${esc(r.saladas ? r.saladas.itens.map(saladaNome).join(', ') : '—')}</td><td class="num muted">${at ? sp(new Date(at)).hhmm : ''}</td></tr>`;
+          <td class="muted">${esc(r.saladas ? r.saladas.itens.map(saladaNome).join(', ') : '—')}${r.avisos?.length ? ` · ${r.avisos.length} ${r.avisos.length > 1 ? 'pratos mudaram' : 'prato mudou'}` : ''}</td><td class="num muted">${at ? sp(new Date(at)).hhmm : ''}</td></tr>`;
       }).join('') || '<tr><td class="muted">nada registrado ainda</td></tr>';
+      renderAvisos();
+    }
+
+    // ------------------------------------------------------------ pratos que mudaram
+    // Usa o mesmo parser do app (nutrition.js + receitas) para listar os pratos da refeição escolhida.
+    const grupoNome = { prato: 'Prato', guarnicao: 'Guarnição', sobremesa: 'Sobremesa', salada: 'Salada', refeicao: 'Refeição' };
+    let nutri = null;
+    async function loadNutri() {
+      if (nutri) return nutri;
+      const [mod, receitas] = await Promise.all([import('/nutrition.js'), fetch('/receitas.json').then((r) => r.json()).catch(() => null)]);
+      if (receitas) mod.applyReceitas(receitas);
+      return (nutri = mod);
+    }
+    const menus = {}; // cardápio por restaurante (/api/menu)
+    async function mealItems() {
+      const m = await loadNutri();
+      menus[reg.rest] ||= await fetch(`/api/menu?id=${encodeURIComponent(reg.rest)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const day = menus[reg.rest]?.days?.find((d) => d.date === isoToBr(reg.iso));
+      const parsed = day ? m.parseMenu(day[reg.meal]?.menu ?? '') : { closed: true, items: [] };
+      return { m, items: parsed.items.filter((it) => ['prato', 'guarnicao', 'sobremesa'].includes(it.group)) };
+    }
+
+    let avisoSeq = 0;
+    async function renderAvisos() {
+      const seq = ++avisoSeq;
+      const { m, items } = await mealItems();
+      if (seq !== avisoSeq) return; // trocou de refeição enquanto carregava
+      const cur = reg.data[regField()] || {};
+      const avisos = cur.avisos || [];
+      const usp = (cur.mudancas || []).map((mu) => `<p class="muted" style="margin:4px 0">USP mudou (vimos às ${sp(new Date(mu.at)).hhmm}): ${mu.itens.map((i) => `${grupoNome[i.grupo] || esc(i.grupo)}: ${esc(i.de.join(', ') || '—')} → ${esc(i.para.join(', ') || '—')}`).join('; ')}</p>`).join('');
+      const rows = items.map((it) => {
+        const a = avisos.find((x) => m.norm(x.item) === m.norm(it.text));
+        const form = reg.avisoForm === it.text ? `<form class="reg-row aviso-form" data-item="${esc(it.text)}" data-grupo="${it.group}">
+            <input name="novo" placeholder="Prato que entrou no lugar (opcional)" autocomplete="off">
+            <input name="motivo" list="motivos" placeholder="Motivo (ex.: acabou essa opção)" autocomplete="off">
+            <button type="submit" class="primary">Salvar</button><button type="button" class="link-btn" data-aviso-cancel>cancelar</button>
+          </form>` : '';
+        const estado = a
+          ? `<span class="ok">${esc([a.novo && `→ ${a.novo}`, a.motivo].filter(Boolean).join(' · '))}</span> <span class="muted">· ${a.tipo === 'report' ? `${a.pessoas} reports · ` : ''}${sp(new Date(a.at)).hhmm}</span>
+             <button type="button" class="link-btn bad" data-aviso-del="${esc(a.item)}">remover</button>`
+          : `<button type="button" class="link-btn" data-aviso-open="${esc(it.text)}">marcar mudança</button>`;
+        return `<div class="aviso-row"><span><span class="pill">${grupoNome[it.group]}</span> ${esc(it.text)}</span> ${estado}</div>${form}`;
+      }).join('');
+      $('#avisoList').innerHTML = usp + (rows || `<p class="muted">Sem cardápio para o ${mealName[reg.meal]} de ${isoToBr(reg.iso).slice(0, 5)}.</p>`);
+      $('#avisoList form input')?.focus();
+    }
+
+    async function postAviso(body, okMsg) {
+      const [date, meal] = regField().split('|');
+      const { status, body: out } = await api('aviso', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ restaurant: reg.rest, date, meal, ...body }) });
+      if (status !== 200) { $('#avisoList').insertAdjacentHTML('afterbegin', `<p class="bad">${esc(out.error || 'erro')}</p>`); return; }
+      if (out.registro && Object.keys(out.registro).length) reg.data[regField()] = out.registro; else delete reg.data[regField()];
+      reg.avisoForm = null;
+      renderReg(okMsg, { fill: false });
+    }
+
+    function bindAvisos() {
+      $('#avisoList').onclick = (e) => {
+        const open = e.target.closest('[data-aviso-open]');
+        const del = e.target.closest('[data-aviso-del]');
+        if (open) { reg.avisoForm = open.dataset.avisoOpen; renderAvisos(); }
+        else if (e.target.closest('[data-aviso-cancel]')) { reg.avisoForm = null; renderAvisos(); }
+        else if (del) postAviso({ acao: 'remover', item: del.dataset.avisoDel });
+      };
+      $('#avisoList').onsubmit = (e) => {
+        e.preventDefault();
+        const f = e.target.closest('form');
+        postAviso({ acao: 'marcar', grupo: f.dataset.grupo, item: f.dataset.item, novo: f.novo.value, motivo: f.motivo.value });
+      };
+    }
+
+    // ------------------------------------------------------------ reports de mudança
+    function reportsPanel() {
+      return `<div class="panel" id="reportsPanel"><h2>Reports de mudança</h2>
+        <div id="reportList"><p class="muted">Carregando…</p></div>
+        <h3 style="font-size:14px;margin:18px 0 6px">Mudanças detectadas no cardápio da USP</h3>
+        <table><tbody id="uspLog"></tbody></table>
+        <p class="hint">O cardápio é conferido na USP no máximo 1 vez por hora; a hora é quando a mudança foi vista.</p>
+      </div>`;
+    }
+
+    async function loadReports() {
+      const { status, body } = await api('reports');
+      if (status !== 200) { $('#reportList').innerHTML = `<p class="bad">${esc(body.error || 'não deu para carregar')}</p>`; return; }
+      const min = body.minimo || 10;
+      $('#reportList').innerHTML = body.reports.map((r) => {
+        const sug = Object.entries(r.sugestoes || {}).sort((a, b) => b[1] - a[1]);
+        return `<div class="rep${r.n >= min ? ' ready' : ''}">
+          <div><b>${esc(restNames[r.restaurant] || '#' + r.restaurant)}</b> · ${esc(r.date.slice(0, 5))} ${mealName[r.meal] || ''} · ${grupoNome[r.grupo] || ''}: <b>${esc(r.item)}</b></div>
+          <div class="muted">${r.n} ${r.n === 1 ? 'pessoa avisou' : 'pessoas avisaram'}${r.n >= min ? ' · <span class="ok">pronto para aprovar</span>' : ` · faltam ${min - r.n} para ${min}`} · último às ${sp(new Date(r.ultimo)).hhmm}${sug.length ? ` · no lugar: ${sug.map(([t, n]) => `${esc(t)} (${n})`).join(', ')}` : ''}</div>
+          <form class="reg-row rep-form" data-field="${esc(r.field)}">
+            <input name="novo" placeholder="Prato que entrou no lugar (opcional)" value="${esc(sug[0]?.[0] || '')}" autocomplete="off">
+            <input name="motivo" list="motivos" placeholder="Motivo (aparece no app)" autocomplete="off">
+            <button type="submit" class="primary">Aprovar</button><button type="button" class="link-btn bad" data-drop>descartar</button>
+          </form>
+        </div>`;
+      }).join('') || '<p class="muted">Nenhum report em aberto.</p>';
+      $('#uspLog').innerHTML = body.mudancas.map((mu) => `<tr><td class="muted">${sp(new Date(mu.at)).date.slice(0, 5)} ${sp(new Date(mu.at)).hhmm}</td>
+        <td>${esc(restNames[mu.restaurant] || '#' + mu.restaurant)} · ${esc(mu.date.slice(0, 5))} ${mealName[mu.meal] || ''}</td>
+        <td>${mu.itens.map((i) => `${grupoNome[i.grupo] || esc(i.grupo)}: ${esc(i.de.join(', ') || '—')} → ${esc(i.para.join(', ') || '—')}`).join('<br>')}</td></tr>`).join('')
+        || '<tr><td class="muted">nenhuma mudança vista ainda</td></tr>';
+    }
+
+    function bindReports() {
+      const post = async (body) => {
+        const { status, body: out } = await api('report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (status !== 200) { $('#reportList').insertAdjacentHTML('afterbegin', `<p class="bad">${esc(out.error || 'erro')}</p>`); return; }
+        await loadReports();
+        loadReg(); // o aviso aprovado aparece em "Pratos que mudaram"
+      };
+      $('#reportList').onsubmit = (e) => {
+        e.preventDefault();
+        const f = e.target.closest('form');
+        post({ acao: 'aprovar', field: f.dataset.field, novo: f.novo.value, motivo: f.motivo.value });
+      };
+      $('#reportList').onclick = (e) => {
+        if (e.target.closest('[data-drop]')) post({ acao: 'descartar', field: e.target.closest('form').dataset.field });
+      };
+      loadReports();
     }
 
     function syncChips() {
@@ -228,6 +364,7 @@
         renderSaladaChips();
       };
       $('#saladaSave').onclick = () => saveReg({ saladas: [...reg.pick] });
+      bindAvisos();
       loadReg();
     }
 
@@ -350,10 +487,13 @@
           <div class="panel" style="margin:0"><h2>Escolhas</h2><table><tbody>${choiceRows}</tbody></table></div>
         </div>
         <div class="panel"><h2>Dispositivos (30d)</h2><table><tbody>${rankRows(s.devices)}</tbody></table></div>
+
+        ${reportsPanel()}
       `;
       $('#logout').onclick = async () => { await api('logout', { method: 'POST' }); renderLogin('Você saiu.'); };
       $('#refresh').onclick = () => renderDashboard(days);
       bindReg();
+      bindReports();
     }
 
     boot();

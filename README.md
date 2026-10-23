@@ -109,6 +109,27 @@ No app, o sabor aparece ao lado do suco ("uva – registrado 17h45") e as salada
 lugar de "Saladas diversas"; sem registro, tudo continua como antes. Fica no Redis em
 `mbp:registro:<restaurante>` e sai em `/api/registro?id=`.
 
+### Pratos que mudaram
+
+Três caminhos levam a um **"!" ao lado do prato** no app (tocar mostra o aviso):
+
+- **A USP mudou o cardápio.** Quando o cache (`lib/uspcache.js`) vê que o cardápio de um
+  restaurante mudou, `lib/registro.js` compara refeição por refeição (prato, guarnição, salada,
+  sobremesa; diferença só de maiúscula/acento/pontuação não conta) e grava o que saiu, o que entrou
+  e a hora em que descobrimos. O prato que entrou ganha o "!" ("antes era X"); no /admin aparece
+  em "Pratos que mudaram" e no histórico "Mudanças detectadas no cardápio da USP".
+- **Reports dos usuários.** No fim do app, "Mudou alguma coisa?" lista prato, opção, guarnição e
+  sobremesa da refeição de hoje, com um botão "Mudou" e um campo opcional "o que tem no lugar?".
+  Cada navegador conta uma vez por prato (`/api/report`, `lib/reports.js`). No /admin, a seção
+  "Reports de mudança" (no fim da página) mostra quantas pessoas avisaram e as sugestões; a partir
+  de **10** o report fica destacado. Aprovar pede o motivo (aparece no app, ex.: "Acabou essa
+  opção") e, se quiser, o prato que entrou no lugar; descartar apaga. Reports com mais de 2 dias
+  somem sozinhos.
+- **O admin marca direto.** Em "Registro da refeição → Pratos que mudaram", qualquer prato da
+  refeição escolhida pode ser marcado (motivo e/ou prato novo) ou desmarcado, sem esperar reports.
+
+Com prato novo informado, o app passa a mostrar e calcular o novo prato no lugar do antigo.
+
 ## Rodar localmente
 
 Requer **Node 20+**. Não há dependências para instalar.

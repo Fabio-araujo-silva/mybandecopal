@@ -1,9 +1,10 @@
 import { adminConfigured, checkPassword, clearCookie, isAdmin, readJson, registerFail, sessionCookie, tooManyFails } from '../lib/auth.js';
 import { readStats } from '../lib/stats.js';
 import { listArchive } from '../lib/archive.js';
-import { readRegistros, saveRegistro } from '../lib/registro.js';
+import { addAviso, readMudancasLog, readRegistros, removeAviso, saveRegistro } from '../lib/registro.js';
+import { REPORT_MIN, approveReport, dropReport, listReports } from '../lib/reports.js';
 
-// /api/admin?action=login|logout|stats|session|menus|registro
+// /api/admin?action=login|logout|stats|session|menus|registro|aviso|reports|report
 export default async function handler(req, res) {
   const action = new URL(req.url, 'http://x').searchParams.get('action') || 'stats';
 
@@ -58,6 +59,30 @@ export default async function handler(req, res) {
       } else {
         res.status(200).json({ registros: await readRegistros(new URL(req.url, 'http://x').searchParams.get('id') || '2') });
       }
+    } catch (err) {
+      res.status(400).json({ error: String(err.message || err) });
+    }
+    return;
+  }
+
+  // aviso de prato que mudou, marcado direto pelo admin: { acao: 'marcar' | 'remover', restaurant, date, meal, grupo, item, novo, motivo }
+  // reports: GET lista os reports em aberto e as últimas mudanças da USP; POST { acao: 'aprovar' | 'descartar', field, novo, motivo }
+  if (action === 'aviso' || action === 'reports' || action === 'report') {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      if (action === 'reports') {
+        const [reports, mudancas] = await Promise.all([listReports(), readMudancasLog()]);
+        res.status(200).json({ reports, minimo: REPORT_MIN, mudancas });
+        return;
+      }
+      if (req.method !== 'POST') { res.status(405).end(); return; }
+      const body = await readJson(req);
+      let registro = null;
+      if (action === 'aviso') registro = body.acao === 'remover' ? await removeAviso(body) : await addAviso({ ...body, tipo: 'admin' });
+      else if (body.acao === 'aprovar') registro = await approveReport(body);
+      else if (body.acao === 'descartar') await dropReport(body.field);
+      else throw new Error('ação inválida');
+      res.status(200).json({ ok: true, registro });
     } catch (err) {
       res.status(400).json({ error: String(err.message || err) });
     }

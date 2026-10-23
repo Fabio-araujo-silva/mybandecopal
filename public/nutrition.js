@@ -625,6 +625,13 @@ export const ROLE_TITLE = {
   sobremesa: 'Sobremesa', acomp: 'Pão e bebida',
 };
 
+// prato genérico para um texto que nenhuma regra reconheceu, pelo papel que ele tem na refeição
+const FALLBACK = {
+  principal: 'carne_generica', vegetariano: 'vegetariano_generico', sobremesa: 'doce_generico',
+  salada: 'salada_mix', bebida: 'refresco', pao: 'minipao',
+};
+export const fallbackKey = (role) => FALLBACK[role] || 'guarnicao_generica';
+
 export function parseMenu(text) {
   const trimmed = (text || '').trim();
   if (!trimmed || /^fechado\b/i.test(trimmed)) return { closed: true, items: [] };
@@ -672,10 +679,7 @@ export function parseMenu(text) {
       }
     } else {
       role = roleFromLabel || (!principalSeen ? 'principal' : 'guarnicao');
-      key = {
-        principal: 'carne_generica', vegetariano: 'vegetariano_generico', sobremesa: 'doce_generico',
-        salada: 'salada_mix', bebida: 'refresco', pao: 'minipao',
-      }[role] || 'guarnicao_generica';
+      key = fallbackKey(role);
     }
     if (role === 'principal') principalSeen = true;
     const group = role === 'principal' || role === 'vegetariano' ? 'prato'

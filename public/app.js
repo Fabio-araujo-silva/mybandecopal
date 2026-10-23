@@ -1,4 +1,4 @@
-import { DISHES, ROLE_TITLE, applyReceitas, choiceGroups, createDb, norm, parseMenu } from './nutrition.js';
+import { DISHES, ROLE_TITLE, applyReceitas, choiceGroups, createDb, fallbackKey, matchDish, norm, parseMenu, sauceType } from './nutrition.js';
 
 const DEFAULT_RESTAURANT = { id: '2', name: 'Área 1 · São Carlos' };
 const AJUSTE_BANDEJAO = 0.10;
@@ -51,6 +51,9 @@ const state = {
   portions: store.get('portions-v3', {}), // { "restaurante|dd/mm/aaaa|lunch": { prato: { u, q } } }
   overrides: store.get('overrides', {}),
   ratings: store.get('ratings', {}), // { "frango à passarinho": 4 } — a nota segue o prato
+  reported: store.get('reported', {}), // { "2|23/10/2026|lunch|frango assado": true } — "mudou" já avisado
+  avisoOpen: new Set(), // itens com o aviso de mudança aberto
+  reportOpen: null,     // item com o formulário de "mudou" aberto
   sugarFree: store.get('sugarFree', false),
   choicePrefs: store.get('choices', {}),
   adjust: store.get('adjust', true),
@@ -126,10 +129,11 @@ async function loadRegistros() {
   try {
     const { registros } = await getJson(`/api/registro?id=${encodeURIComponent(id)}`);
     if (id !== state.restaurant.id || JSON.stringify(registros) === JSON.stringify(state.registros)) return;
-    const saladasAntes = JSON.stringify(registroDaRefeicao()?.saladas?.itens ?? null);
+    // saladas e avisos de mudança mudam os itens da refeição; o sabor do suco só o rótulo
+    const itensDoRegistro = () => { const r = registroDaRefeicao(); return JSON.stringify([r?.saladas?.itens, r?.avisos, r?.mudancas]); };
+    const antes = itensDoRegistro();
     state.registros = registros || {};
-    // as saladas mudam os itens da refeição; o sabor do suco só o rótulo
-    if (state.parsed && JSON.stringify(registroDaRefeicao()?.saladas?.itens ?? null) !== saladasAntes) buildMeal();
+    if (state.parsed && itensDoRegistro() !== antes) buildMeal();
     render();
   } catch { /* sem registro, tudo bem */ }
 }
@@ -219,9 +223,34 @@ function withSaladas(parsed) {
   return { ...parsed, items: [...parsed.items.filter((it) => it.group !== 'salada'), ...saladas] };
 }
 
+// Pratos que mudaram ganham um aviso ("!" no app): os marcados no /admin (aprovados a partir dos
+// reports ou direto, com motivo e, se houver, o prato que entrou no lugar — aí o item passa a ser
+// o novo) e os que a própria USP trocou no cardápio (o aviso diz o que era antes).
+function withAvisos(parsed) {
+  const reg = registroDaRefeicao();
+  if (parsed.closed || (!reg?.avisos && !reg?.mudancas)) return parsed;
+  const items = parsed.items.map((it) => {
+    const a = (reg.avisos ?? []).find((x) => norm(x.item) === norm(it.text));
+    if (a?.novo) {
+      const key = matchDish(a.novo) ?? fallbackKey(it.role);
+      const text = a.novo.charAt(0).toUpperCase() + a.novo.slice(1);
+      return { ...it, text, key, generic: !matchDish(a.novo), sauce: it.group === 'prato' ? sauceType(a.novo) : null, aviso: a };
+    }
+    if (a) return { ...it, aviso: a };
+    for (const m of [...(reg.mudancas ?? [])].reverse()) {
+      const c = m.itens.find((x) => x.grupo === it.group && x.para.some((t) => norm(t) === norm(it.text)));
+      if (c) return { ...it, aviso: { tipo: 'usp', antes: c.de.join(' / '), at: m.at } };
+    }
+    return it;
+  });
+  return { ...parsed, items };
+}
+
 function buildMeal() {
   const meal = currentMeal();
-  state.parsed = meal ? withSaladas(parseMenu(meal.menu)) : null;
+  state.parsed = meal ? withAvisos(withSaladas(parseMenu(meal.menu))) : null;
+  state.avisoOpen.clear();
+  state.reportOpen = null;
   state.expanded.clear();
   state.selected = {};
   if (!state.parsed || state.parsed.closed) return;
@@ -422,7 +451,63 @@ function render() {
   renderSummary(summary, t);
   renderSections(sections);
   renderRatings();
+  renderReports();
   updateSticky(t);
+}
+
+// ---------------------------------------------------------------- "mudou alguma coisa?"
+// Report de prato que mudou lá no bandejão, só na refeição de hoje. Cada navegador avisa uma vez por
+// prato; com 10 avisos o admin confere e, se aprovar, vira aviso com motivo para todo mundo.
+const REPORT_TITLE = { principal: 'Prato principal', vegetariano: 'Opção vegetariana', guarnicao: 'Guarnição', sobremesa: 'Sobremesa' };
+const reportKey = (it) => `${mealKey()}|${norm(it.text)}`;
+
+let reportsKey = '';
+function renderReports() {
+  const day = state.menu?.days[state.dayIdx];
+  const today = day?.date === spNow().date;
+  const items = today ? state.parsed.items.filter((it) => ['prato', 'guarnicao', 'sobremesa'].includes(it.group)) : [];
+  $('#reportCard').hidden = !items.length;
+  const key = [mealKey(), state.reportOpen, ...items.map((it) => `${it.id}:${norm(it.text)}:${state.reported[reportKey(it)] ? 1 : 0}:${it.aviso?.tipo ?? ''}`)].join('|');
+  if (key === reportsKey) return; // nada mudou: não mexe no DOM (não apaga o que a pessoa está digitando)
+  reportsKey = key;
+  $('#reports').innerHTML = items.map((it) => {
+    const done = state.reported[reportKey(it)];
+    const action = it.aviso && it.aviso.tipo !== 'usp' ? '<span class="report-done">já confirmado</span>'
+      : done ? '<span class="report-done">avisado ✓</span>'
+        : `<button class="report-btn" data-report="${it.id}">Mudou</button>`;
+    const form = state.reportOpen === it.id && !done ? `<form class="report-form" data-report-form="${it.id}">
+        <input maxlength="80" placeholder="O que tem no lugar? (opcional)" autocomplete="off" enterkeyhint="send" aria-label="O que tem no lugar">
+        <button type="submit">Enviar</button><button type="button" class="link" data-report-cancel>cancelar</button>
+        <span class="report-err" role="alert"></span>
+      </form>` : '';
+    return `<div class="rate-row"><div class="rate-info"><span class="rate-cat">${REPORT_TITLE[it.role] ?? ROLE_TITLE[it.group]}</span><span class="rate-dish">${esc(it.text)}</span></div>${action}</div>${form}`;
+  }).join('');
+  $('#reports [data-report-form] input')?.focus();
+}
+
+async function sendReport(form) {
+  const it = state.parsed.items.find((x) => x.id === form.dataset.reportForm);
+  const day = state.menu.days[state.dayIdx];
+  const btn = form.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restaurant: state.restaurant.id, date: day.date, meal: state.meal, grupo: it.group, item: it.text, vid: visitorId, texto: form.querySelector('input').value }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    state.reported[reportKey(it)] = true;
+    const keys = Object.keys(state.reported);
+    for (const k of keys.slice(0, Math.max(0, keys.length - 60))) delete state.reported[k]; // guarda só os mais recentes
+    store.set('reported', state.reported);
+    state.reportOpen = null;
+    renderReports();
+  } catch (err) {
+    btn.disabled = false;
+    form.querySelector('.report-err').textContent = `Não deu para enviar (${err.message}).`;
+  }
 }
 
 // ---------------------------------------------------------------- avaliação em estrelas
@@ -510,7 +595,8 @@ function renderMenuLine(el) {
   const items = state.parsed.items;
   // emoji pelo papel no prato; na sobremesa, pelo tipo (doce ou fruta)
   const emoji = (it) => (it.group === 'sobremesa' ? MENU_EMOJI[DISHES[it.key].kind] ?? MENU_EMOJI.doce : MENU_EMOJI[it.role] ?? '');
-  const names = (group) => items.filter((it) => it.group === group).map((it) => `${emoji(it)} ${esc(it.text)}`);
+  const names = (group) => items.filter((it) => it.group === group)
+    .map((it) => `${emoji(it)} ${esc(it.text)}${it.aviso ? ' <b class="ml-warn" title="Mudou recentemente">!</b>' : ''}`);
   const reg = registroDaRefeicao();
   const parts = [
     names('prato').join(' ou '),
@@ -596,6 +682,20 @@ function azeiteRow() {
     <span class="sauce-btns"><button data-azeite="minus" aria-label="Menos azeite">−</button><button data-azeite="plus" aria-label="Mais azeite" ${n >= 3 ? 'disabled' : ''}>+</button></span></div>`;
 }
 
+// texto do aviso de prato que mudou (o "!" ao lado do nome)
+function avisoText(it) {
+  const a = it.aviso;
+  const quando = (iso) => { const at = spNow(new Date(iso)); return at.date === state.menu?.days[state.dayIdx]?.date ? at.hhmm : `${at.date.slice(0, 5)} ${at.hhmm}`; };
+  if (a.tipo === 'usp') {
+    return `Mudou no cardápio da USP${a.antes ? `: antes era <b>${esc(a.antes)}</b>` : ''}. Vimos a mudança às ${quando(a.at)}.`;
+  }
+  return [
+    a.motivo && `${esc(a.motivo.charAt(0).toUpperCase() + a.motivo.slice(1))}.`,
+    a.novo && `No lugar de <b>${esc(a.item)}</b>.`,
+    `Atualizado às ${quando(a.at)}.`,
+  ].filter(Boolean).join(' ');
+}
+
 function renderItem(it) {
   const dish = DISHES[it.key];
   const p = portion(it);
@@ -617,11 +717,12 @@ function renderItem(it) {
   return `<div class="item${p.q === 0 ? ' off' : ''}" data-id="${it.id}" data-step="${step}">
     <div class="item-top">
       <button class="name-btn" data-act="toggle" aria-expanded="${open}">
-        <span class="name">${esc(it.text)}${isSuco(it) ? sucoTag(it) : ''}</span>
+        <span class="name">${esc(it.text)}${it.aviso ? ' <span class="warn" data-act="aviso" title="Mudou recentemente: toque para ver">!</span>' : ''}${isSuco(it) ? sucoTag(it) : ''}</span>
         <span class="ref${it.generic && !overridden ? ' generic' : ''}">${esc(ref + amount)}</span>
       </button>
       <span class="kc">${fmt(n.kcal)} <small>kcal</small></span>
     </div>
+    ${it.aviso && (state.avisoOpen.has(it.id) || open) ? `<div class="aviso-box" role="note">${avisoText(it)}</div>` : ''}
     <div class="portion">
       <button class="step" data-act="minus" aria-label="Diminuir">−</button>
       <input class="qty" data-act="qty" inputmode="decimal" enterkeyhint="done" value="${fmtQty(p.q)}" aria-label="Quantidade">
@@ -663,6 +764,9 @@ function bindItem(el) {
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (act === 'toggle') {
       state.expanded.has(it.id) ? state.expanded.delete(it.id) : state.expanded.add(it.id);
+      render();
+    } else if (act === 'aviso') {
+      state.avisoOpen.has(it.id) ? state.avisoOpen.delete(it.id) : state.avisoOpen.add(it.id);
       render();
     } else if (act === 'minus') {
       setPortion(it, { q: Math.max(0, +(portion(it).q - step).toFixed(2)) });
@@ -841,6 +945,15 @@ bindSheet($('#foodSheet'));
 $('#ratings').addEventListener('click', (e) => {
   const b = e.target.closest('.star');
   if (b) rate(b.dataset.key, b.dataset.cat, b.dataset.label, Number(b.dataset.star));
+});
+$('#reports').addEventListener('click', (e) => {
+  const open = e.target.closest('[data-report]');
+  if (open) { state.reportOpen = open.dataset.report; renderReports(); }
+  else if (e.target.closest('[data-report-cancel]')) { state.reportOpen = null; renderReports(); }
+});
+$('#reports').addEventListener('submit', (e) => {
+  e.preventDefault();
+  sendReport(e.target.closest('[data-report-form]'));
 });
 
 // ---------------------------------------------------------------- início
