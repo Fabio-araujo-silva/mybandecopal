@@ -394,6 +394,7 @@ const RULES = [
   [/ovos? (cozido|coradinho)|^ovos?$/, 'ovo_cozido'],
 
   // carnes
+  [/(mandioca|aipim|macaxeira) ensopad/, 'mandioca'], // senão "ensopad" vira carne em cubos
   [/feijoada/, 'feijoada'],
   [/carreteiro/, 'carreteiro'],
   [/escondidinho/, 'escondidinho_carne'],

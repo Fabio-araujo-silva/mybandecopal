@@ -504,17 +504,21 @@ function renderMealToggle() {
 
 // Uma linha discreta para quem só quer saber o que tem: só o que muda de um dia para o outro
 // (prato, guarnição, sobremesa), mais saladas e suco quando foram registrados no /admin.
+const MENU_EMOJI = { principal: '🍗', vegetariano: '🌱', guarnicao: '🍲', salada: '🥗', doce: '🍰', fruta: '🍎', suco: '🧃' };
+
 function renderMenuLine(el) {
   const items = state.parsed.items;
-  const names = (group) => items.filter((it) => it.group === group)
-    .map((it) => `${it.role === 'vegetariano' ? '<span class="leaf">●</span> ' : ''}${esc(it.text)}`);
+  // emoji pelo papel no prato; na sobremesa, pelo tipo (doce ou fruta)
+  const emoji = (it) => (it.group === 'sobremesa' ? MENU_EMOJI[DISHES[it.key].kind] ?? MENU_EMOJI.doce : MENU_EMOJI[it.role] ?? '');
+  const names = (group) => items.filter((it) => it.group === group).map((it) => `${emoji(it)} ${esc(it.text)}`);
   const reg = registroDaRefeicao();
   const parts = [
     names('prato').join(' ou '),
     ...names('guarnicao'),
-    reg?.saladas ? `Salada: ${names('salada').join(', ')}` : '', // salada só quando registrada no /admin
+    // salada só quando registrada no /admin
+    reg?.saladas ? `${MENU_EMOJI.salada} ${items.filter((it) => it.group === 'salada').map((it) => esc(it.text)).join(', ')}` : '',
     names('sobremesa').join(' ou '),
-    reg?.suco ? `Suco de ${esc(reg.suco.sabores)}` : '',
+    reg?.suco ? `${MENU_EMOJI.suco} Suco de ${esc(reg.suco.sabores)}` : '',
   ].filter(Boolean);
   el.innerHTML = `<span class="ml-k">Cardápio</span> ${parts.join(' · ')}`;
   el.hidden = !parts.length;
