@@ -333,7 +333,7 @@
           <p style="margin:0 0 8px">Última chamada: ${lastTxt}</p>
           <p class="muted" style="margin:0">7 dias: <span class="ok">${fmt(u.ok7d)} ok</span> · <span class="${u.err7d?'bad':''}">${fmt(u.err7d)} erros</span>${u.avgMs!=null?` · ${u.avgMs} ms média`:''}</p>
           ${errRows ? `<table style="margin-top:10px"><thead><tr><th>Erro recente</th><th></th><th></th></tr></thead><tbody>${errRows}</tbody></table>` : ''}
-          <p class="hint">Só conta quando o cache da Vercel expira (a cada ~15 min por restaurante).</p>
+          <p class="hint">Só conta as consultas de verdade à USP: o cardápio fica guardado no nosso Redis e cada restaurante é consultado no máximo 1 vez por hora (só regrava se mudou).</p>
         </div>
 
         <div class="panel"><h2>Porções que a galera escolhe (calibração)</h2>

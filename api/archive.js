@@ -1,6 +1,6 @@
 // Coleta diária: busca o cardápio de TODOS os restaurantes e arquiva (mesmo os que ninguém abriu).
 // Roda pelo Vercel Cron (ver vercel.json). Protegido por CRON_SECRET.
-import { getMenu, getRestaurants } from '../lib/usp.js';
+import { getMenuCached, getRestaurantsCached } from '../lib/uspcache.js';
 import { archiveMenu } from '../lib/archive.js';
 
 function authorized(req) {
@@ -14,12 +14,13 @@ function authorized(req) {
 export default async function handler(req, res) {
   if (!authorized(req)) { res.status(401).json({ error: 'não autorizado' }); return; }
   try {
-    const campi = await getRestaurants();
+    // pelo cache: a USP só é consultada para o que tem mais de 1 h (cardápio) ou 1 dia (lista)
+    const { restaurants: campi } = await getRestaurantsCached();
     const restaurants = campi.flatMap((c) => c.restaurants.map((r) => ({ id: r.id, name: r.name })));
     let dias = 0, ok = 0, erros = 0;
     for (const r of restaurants) {
       try {
-        const menu = await getMenu(r.id);
+        const { menu } = await getMenuCached(r.id);
         dias += await archiveMenu(r.id, menu.days, r.name);
         ok++;
       } catch { erros++; }

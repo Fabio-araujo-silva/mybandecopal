@@ -1,8 +1,8 @@
-import { getRestaurants } from '../lib/usp.js';
+import { getRestaurantsCached } from '../lib/uspcache.js';
 
 export default async function handler(req, res) {
   try {
-    const list = await getRestaurants();
+    const { restaurants: list } = await getRestaurantsCached(); // a USP só é consultada uma vez por dia
     res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800');
     res.status(200).json(list);
   } catch (err) {

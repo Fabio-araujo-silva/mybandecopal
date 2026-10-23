@@ -1,12 +1,13 @@
 {
   "_leia": [
-    "Receitas montadas a partir do cartaz de ingredientes do bandejão (foto). Do cartaz só valem os INGREDIENTES: kcal e macros vêm sempre da TACO (ids numéricos de public/taco.json) e, para o que a TACO não tem, dos EXTRAS da TBCA ('x:...' em public/nutrition.js).",
-    "Suco e picolé têm valores fixos medidos no bandejão e não entram aqui.",
+    "Receitas montadas a partir do cartaz do bandejão (foto). Gerido pela skill cardapio-receitas.",
+    "cartaz: { kcal, g } = kcal informadas no cartaz para g gramas. Valem para proteína, opção vegetariana, guarnição, salada e sobremesa doce: o prato passa a ter essas kcal por grama (a porção continua a do app) e os macros seguem a proporção da composição pela TACO (TBCA só para o que a TACO não tem). Pão, arroz, feijão e fruta ficam sempre pela TACO; suco e picolé têm valor fixo e não entram aqui.",
+    "Sem cartaz (prato nunca visto), vale a estimativa só pela composição.",
+    "composicao: [ingrediente, partes] somando 100, com os ingredientes do cartaz. Deve ser plausível sozinha: se ficar muito longe das kcal do cartaz (fator fora de ~0,7–1,5), revise as proporções (mais açúcar/gordura/menos água). Se continuar fora, decide-se caso a caso com o usuário: cartaz alto demais → vale o cartaz; baixo demais → vale a TACO (sem 'cartaz'). Registre em 'triangulacao'.",
     "chave: prato de DISHES (nutrition.js) a refinar, ou uma chave nova. base: prato do qual uma chave nova herda medidas e quantidade padrão.",
     "texto: regex (texto do cardápio sem acento e em minúsculas) que leva a esta receita; vem antes das regras genéricas.",
-    "composicao: [ingrediente, partes] somando 100. oleo: false quando a receita já lista o óleo/margarina (aí não entra o +10% de gordura do preparo).",
-    "Saladas levam sempre tipo 'salada' e nome: são elas que aparecem para marcar no /admin (Registro da refeição → Saladas).",
-    "Gerido pela skill cardapio-receitas."
+    "oleo: false quando a receita já lista o óleo/margarina (aí não soma o +10% de gordura do preparo). Com cartaz o +10% sempre vale (o cartaz ainda deixa gordura de fora) e oleo é ignorado.",
+    "Saladas levam sempre tipo 'salada' e nome: são elas que aparecem para marcar no /admin (Registro da refeição → Saladas)."
   ],
   "receitas": [
     {
@@ -17,8 +18,9 @@
       "texto": ["^hamburguer( bovino)? (ao )?molho barbecue"],
       "ingredientes": "Hambúrguer bovino, alho, cebola, açúcar cristal, amido de milho, catchup, molho shoyu, mostarda, óleo de soja, polpa de tomate, sal e salsa",
       "composicao": [[417, 78], [160, 6], ["x:catchup", 4], [492, 3], [107, 4], [518, 2], ["x:mostarda", 1], [42, 1], [272, 1]],
-      "oleo": false,
-      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Hamburguer ao Molho Barbecue" }]
+      "cartaz": { "kcal": 315, "g": 150 },
+      "triangulacao": "Composição dá 198 kcal/100 g; cartaz 210 (fator 1,06): composição mantida.",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Hamburguer ao Molho Barbecue", "kcal_cartaz": "315 kcal/150 g" }]
     },
     {
       "chave": "hamburguer_pvt_barbecue",
@@ -28,24 +30,27 @@
       "texto": ["^hamburguer de (pvt|pts|soja).*barbecue"],
       "ingredientes": "Farinha de trigo, farinha de rosca, proteína de soja, alho, cebola, açúcar cristal, amido de milho, catchup, molho shoyu, mostarda, óleo de soja, polpa de tomate, sal e salsa (o cartaz chamou de 'hambúrguer de lentilha', mas não lista lentilha)",
       "composicao": [["x:pvt", 55], [35, 8], [34, 7], [107, 8], [82, 1], [272, 2], [160, 7], ["x:catchup", 5], [492, 3], [518, 2], ["x:mostarda", 1], [42, 1]],
-      "oleo": false,
-      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Hambúrguer de Lentilha Molho Barbecue" }]
+      "cartaz": { "kcal": 275, "g": 170 },
+      "triangulacao": "Composição dá 205 kcal/100 g; cartaz 162 (fator 0,79): PVT mais hidratada que a da TBCA; composição mantida.",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Hambúrguer de Lentilha Molho Barbecue", "kcal_cartaz": "275 kcal/170 g" }]
     },
     {
       "chave": "macarrao_primavera",
       "nome": "Macarrão à primavera",
       "ingredientes": "Macarrão parafuso, alho, cebola, cenoura, ervilha, margarina, milho, salsa e sal",
       "composicao": [["x:macarrao", 72], [109, 8], [560, 7], [45, 7], [107, 3], [263, 2.5], [82, 0.5]],
-      "oleo": false,
-      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Macarrão Primavera" }]
+      "cartaz": { "kcal": 230, "g": 100 },
+      "triangulacao": "Composição dá 104 kcal/100 g; cartaz 230 (fator 2,2). Massa bem menos hidratada que a cozida da TBCA (ou calculada pelo peso seco); proporções mantidas, os macros seguem a massa.",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Macarrão Primavera", "kcal_cartaz": "230 kcal/100 g" }]
     },
     {
       "chave": "brigadeirao",
       "nome": "Brigadeirão (leite, açúcar, amido e chocolate)",
       "ingredientes": "Leite integral, açúcar cristal, amido de milho e chocolate em pó",
-      "composicao": [["x:leite", 74], [492, 13], [42, 6], ["x:chocolate-po", 7]],
-      "oleo": false,
-      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Brigadeirão" }]
+      "composicao": [["x:leite", 60], [492, 25], [42, 7], ["x:chocolate-po", 8]],
+      "cartaz": { "kcal": 276, "g": 100 },
+      "triangulacao": "Com 74% de leite e 13% de açúcar dava 147 kcal/100 g (fator 1,9, implausível). Refeito com mais açúcar e chocolate: 192 kcal/100 g, fator 1,44 = leite reduzido no cozimento.",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Brigadeirão", "kcal_cartaz": "276 kcal/100 g" }]
     },
     {
       "chave": "salada_fradinho",
@@ -55,37 +60,44 @@
       "texto": ["salada.*fradinho"],
       "ingredientes": "Feijão-fradinho, cebola, tomate e salsa",
       "composicao": [[563, 75], [107, 10], [157, 12], [153, 3]],
-      "oleo": false,
-      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Feijão Fradinho" }]
+      "cartaz": { "kcal": 78, "g": 100 },
+      "triangulacao": "Composição dá 65 kcal/100 g; cartaz 78 (fator 1,2): composição mantida.",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Feijão Fradinho", "kcal_cartaz": "78 kcal/100 g" }]
     },
     {
       "chave": "escarola",
       "tipo": "salada",
       "nome": "Chicória",
       "ingredientes": "Chicória",
-      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Chicória" }]
+      "composicao": [[111, 100]],
+      "cartaz": { "kcal": 19, "g": 100 },
+      "triangulacao": "TACO chicória crua 14 kcal/100 g; cartaz 19 (fator 1,36): sem outro item na TACO, mantida.",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Chicória", "kcal_cartaz": "19 kcal/100 g" }]
     },
     {
       "chave": "tomate",
       "tipo": "salada",
       "nome": "Tomate",
       "ingredientes": "Tomate",
-      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Tomate" }]
+      "composicao": [[161, 100]],
+      "cartaz": { "kcal": 23.5, "g": 100 },
+      "triangulacao": "TACO 'Tomate, salada' (21 kcal/100 g) bate melhor com o cartaz (23,5) que o tomate com semente (15); fator 1,12.",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Tomate", "kcal_cartaz": "23,5 kcal/100 g" }]
     },
     {
       "chave": "arroz",
       "ingredientes": "Arroz, alho, alho-poró, cebola, óleo de soja, sal e salsão",
-      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Arroz Branco" }]
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Arroz Branco", "kcal_cartaz": "125 kcal/100 g (não usado: arroz fica pela TACO)" }]
     },
     {
       "chave": "arroz_integral",
       "ingredientes": "Arroz integral, alho, alho-poró, cebola, óleo de soja e sal",
-      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Arroz Integral" }]
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Arroz Integral", "kcal_cartaz": "124 kcal/100 g (não usado: arroz fica pela TACO)" }]
     },
     {
       "chave": "feijao",
       "ingredientes": "Feijão, alho, óleo de soja e sal",
-      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Feijão Carioca" }]
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Feijão Carioca", "kcal_cartaz": "74 kcal/100 g (não usado: feijão fica pela TACO)" }]
     }
   ]
 }

@@ -544,6 +544,10 @@ const RULES = [
 // um prato que já existe (mesma chave) ou cria um novo, herdando medidas/quantidade de `base`.
 // Os valores continuam vindo da TACO/TBCA: do cartaz só se usam os ingredientes.
 // Chamar antes de createDb (o cálculo por 100 g fica em cache).
+// Tipos em que as kcal do cartaz valem. Pão, arroz, feijão (base) e fruta ficam sempre pela TACO;
+// suco e picolé têm valor fixo medido no bandejão.
+export const KCAL_CARTAZ_KINDS = ['proteina', 'vegetariano', 'guarnicao', 'salada', 'doce'];
+
 export function applyReceitas(data) {
   const rules = [];
   for (const r of data?.receitas ?? []) {
@@ -552,9 +556,15 @@ export function applyReceitas(data) {
     const units = r.medidas ?? from?.units;
     const comp = r.composicao ?? from?.comp;
     if (!r.chave || !kind || !units || !comp?.length) continue; // incompleta: ignora em vez de quebrar o app
+    // kcal do cartaz ({ kcal, g }: kcal informadas para g gramas): passam a ser as kcal por grama do
+    // prato (a porção continua a do app) e a composição TACO dá só a proporção dos macros. O +10% de
+    // gordura do preparo vale também aqui: o cartaz ainda deixa gordura de fora.
+    const kcal100 = KCAL_CARTAZ_KINDS.includes(kind) && r.cartaz?.kcal > 0 && r.cartaz?.g > 0
+      ? (r.cartaz.kcal / r.cartaz.g) * 100 : null;
     DISHES[r.chave] = {
-      ...d(kind, r.nome ?? from.label, comp, units, r.qtd ?? from?.qty ?? 1, r.oleo ?? from?.oleo ?? true),
+      ...d(kind, r.nome ?? from.label, comp, units, r.qtd ?? from?.qty ?? 1, kcal100 ? true : r.oleo ?? from?.oleo ?? true),
       cartaz: r.ingredientes ?? null,
+      kcal100,
     };
     for (const t of r.texto ?? []) {
       try { rules.push([new RegExp(t), r.chave]); } catch { /* regex inválida: só não casa */ }
@@ -724,6 +734,14 @@ export function createDb(taco) {
       if (!f) throw new Error(`ingrediente ausente: ${ref}`);
       for (const m of ['k', 'p', 'c', 'g', 'f']) acc[m] += (f[m] * w) / total;
       acc.sources.push({ n: f.n, pct: Math.round((w / total) * 100), taco: typeof ref === 'number', tbca: f.tbca ?? null });
+    }
+    // kcal do cartaz do bandejão: o total vem dele e os macros acompanham na mesma proporção
+    // (a diferença costuma ser água que evaporou ou sobrou no preparo)
+    const kcal100 = typeof dishOrTacoId === 'string' ? DISHES[dishOrTacoId].kcal100 : null;
+    if (kcal100 && acc.k > 0) {
+      const factor = kcal100 / acc.k;
+      for (const m of ['k', 'p', 'c', 'g', 'f']) acc[m] *= factor;
+      acc.cartaz = { factor };
     }
     cache.set(dishOrTacoId, acc);
     return acc;

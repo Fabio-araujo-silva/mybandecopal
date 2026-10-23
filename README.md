@@ -46,6 +46,12 @@ navegador ──► mybandecopal.vercel.app/api/menu ──► uspdigital.usp.br
 
 O cardápio vem da **mesma API que o app oficial Cardápio+ USP usa**.
 
+Para poupar a API da USP, `lib/uspcache.js` guarda o cardápio de cada restaurante no Redis e só
+consulta a USP de novo quando o guardado tem mais de 1 hora (a lista de restaurantes, 1 dia). A
+cada consulta compara com o que já estava guardado e só regrava (e arquiva) se mudou; só uma
+requisição por vez vai à USP, e se ela falhar o site segue com a última versão (nova tentativa
+em 5 min). Na frente disso, a Vercel ainda guarda a resposta por 15 min.
+
 ### Estimativa nutricional
 
 - `public/nutrition.js` quebra o texto do cardápio (que vem em formatos diferentes por campus) em
@@ -55,14 +61,45 @@ O cardápio vem da **mesma API que o app oficial Cardápio+ USP usa**.
   `EXTRAS`, com valores da [TBCA 7.3](https://www.tbca.net.br/) (FCF-USP/FoRC) e o código de cada
   item. Exceções medidas no bandejão: picolé (58 kcal/unidade) e suco (53 kcal/200 ml com açúcar,
   39 sem).
-- `public/receitas.json` guarda as receitas lidas no cartaz de ingredientes do bandejão: refinam
-  pratos de `DISHES` ou criam novos (com regra de texto própria). Do cartaz só valem os
-  ingredientes; kcal e macros continuam vindo da TACO/TBCA. `scripts/taco-busca.mjs "termo"` acha
-  os ids para montar uma receita.
+- `public/receitas.json` guarda as receitas lidas no cartaz do bandejão: refinam pratos de
+  `DISHES` ou criam novos (com regra de texto própria). Em proteína, opção vegetariana,
+  guarnição, salada e sobremesa doce, as kcal do cartaz viram as kcal por grama do prato (a porção
+  continua a do app) e os macros saem da composição pela TACO, na mesma proporção; o +10% de
+  gordura do preparo continua valendo. Pão, arroz, feijão e fruta ficam sempre pela TACO.
+  Prato sem cartaz segue só pela composição. `scripts/taco-busca.mjs "termo"` acha os ids e
+  `scripts/check-receitas.mjs` valida e mostra a triangulação.
 - Cada prato tem medidas caseiras e uma quantidade padrão. Pão e suco não entram por padrão (o
   minipão só entra sozinho nas refeições com hambúrguer).
 - `node --env-file=.env scripts/check-menus.mjs` baixa os cardápios de todos os restaurantes e lista
   os itens que nenhuma regra reconheceu.
+
+### Regras de escolha dos valores
+
+De onde vêm as kcal de cada item, em ordem:
+
+1. **Valores fixos medidos no bandejão:** picolé = 58 kcal/unidade; suco = 53 kcal/200 ml com
+   açúcar e 39 kcal/200 ml sem. Nenhuma tabela ou cartaz muda isso.
+2. **Pão, arroz, feijão e fruta:** sempre pela TACO, mesmo que o cartaz traga outro número
+   (o número fica só anotado no histórico de `receitas.json`).
+3. **Proteína, opção vegetariana, guarnição, salada e sobremesa doce com cartaz registrado:** valem
+   as kcal do cartaz, convertidas em kcal por grama. Os macros saem da composição do prato pela
+   TACO (TBCA só para ingrediente que a TACO não tem), escalados para bater com essas kcal.
+4. **Sem cartaz registrado:** a estimativa pela composição TACO/TBCA, como sempre.
+
+Quando o cartaz fica muito longe da composição (fator kcal do cartaz ÷ kcal da composição fora de
+~0,7–1,5), primeiro se revisam as proporções da receita com os ingredientes listados. Se continuar
+longe, a escolha é feita **caso a caso com o usuário** (a skill pergunta antes de gravar), com este
+padrão:
+
+- **cartaz alto demais** → vale o cartaz (ex.: macarrão à primavera a 230 kcal/100 g);
+- **cartaz baixo demais** → vale a TACO (o cartaz não é gravado como valor).
+
+A decisão fica registrada em `triangulacao` na receita. Valem para todos os itens:
+
+- **porção:** sempre a do app (3 hambúrgueres de 45 g, conchas, colheres…); o peso do cartaz só
+  serve para converter as kcal;
+- **+10% de gordura do preparo:** o botão do app soma nas preparações, inclusive nas que têm
+  cartaz (que ainda deixa gordura de fora).
 
 ### Registro da refeição (/admin)
 

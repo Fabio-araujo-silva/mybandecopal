@@ -2,7 +2,7 @@
 // lista itens não reconhecidos e compara a refeição média com as kcal da SAS (quando há).
 // Uso: node scripts/check-menus.mjs [--verbose]
 import { readFile } from 'node:fs/promises';
-import { getMenu, getRestaurants } from '../lib/usp.js';
+import { getMenuCached, getRestaurantsCached } from '../lib/uspcache.js';
 import { DISHES, choiceGroups, createDb, parseMenu } from '../public/nutrition.js';
 import '../lib/receitas.js';
 
@@ -27,10 +27,11 @@ for (const d of Object.keys(DISHES)) db.per100(d); // valida que todo ingredient
 
 const unknown = new Map();
 const rows = [];
-for (const campus of await getRestaurants()) {
+// pelo cache (como o site): rodar de novo dentro de 1 h não consulta a USP outra vez
+for (const campus of (await getRestaurantsCached()).restaurants) {
   for (const r of campus.restaurants) {
     let menu;
-    try { menu = await getMenu(r.id); } catch (e) { console.log(`! ${r.name}: ${e.message}`); continue; }
+    try { ({ menu } = await getMenuCached(r.id)); } catch (e) { console.log(`! ${r.name}: ${e.message}`); continue; }
     for (const day of menu.days) {
       for (const [mealName, meal] of [['almoço', day.lunch], ['jantar', day.dinner]]) {
         const parsed = parseMenu(meal.menu);

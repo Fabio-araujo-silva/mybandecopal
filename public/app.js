@@ -606,13 +606,14 @@ function renderItem(it) {
   const amount = p.q > 0 ? ` · ${fmt(p.grams)} ${liquid ? 'ml' : 'g'}` : '';
   const shown = DISHES[typeof base === 'string' ? base : it.key];
   const label = shown.label;
+  const per = state.db.per100(base);
   const ref = overridden
     ? `TACO: ${state.db.byId.get(base).n}`
-    : it.generic ? `estimativa genérica · ${label}` : `≈ ${label}`;
+    : it.generic ? `estimativa genérica · ${label}`
+      : per.cartaz ? `${label} · kcal do cartaz` : `≈ ${label}`;
   // − / + andam de 1 em 1 (de 10 em 10 em gramas); frações a pessoa digita
   const step = p.unit[1] === 1 ? 10 : 1;
   const open = state.expanded.has(it.id);
-  const per = state.db.per100(base);
   return `<div class="item${p.q === 0 ? ' off' : ''}" data-id="${it.id}" data-step="${step}">
     <div class="item-top">
       <button class="name-btn" data-act="toggle" aria-expanded="${open}">
@@ -648,7 +649,7 @@ function renderItem(it) {
     ${open ? `<div class="detail">
       ${n.extra ? `<span>Inclui +${fmt(n.extra)} kcal de gordura do preparo.</span>` : ''}
       ${shown.cartaz ? `<span>Ingredientes no cartaz do bandejão: ${esc(shown.cartaz)}.</span>` : ''}
-      <span>Por 100 g: ${fmt(per.k)} kcal · composição usada:</span>
+      <span>Por 100 g: ${fmt(per.k)} kcal${per.cartaz ? ' (informadas no cartaz do bandejão; os macros seguem a composição abaixo, pela TACO)' : ''} · composição usada:</span>
       <ul>${per.sources.map((s) => `<li>${s.pct}% ${esc(s.n)}${s.taco ? '' : s.tbca ? ` (TBCA ${s.tbca})` : ' (estimativa)'}</li>`).join('')}</ul>
       <button class="link" data-act="swap">Trocar por outro alimento da TACO</button>
     </div>` : ''}
