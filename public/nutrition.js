@@ -9,13 +9,15 @@ export const EXTRAS = {
   'x:graodebico': { n: 'Grão-de-bico cozido (TACO cru, rendimento 2,4×)', from: [[575, 1 / 2.4]] },
   'x:leite': { n: 'Leite integral (TACO pó reconstituído a 13%)', from: [[459, 0.13]] },
   'x:gelatina': { n: 'Gelatina pronta (TACO pó a 15%)', from: [[515, 0.15]] },
-  'x:refresco': { n: 'Refresco adoçado (TACO açúcar a 5%)', from: [[494, 0.05]] },
+  // suco com açúcar do bandejão: 53 kcal por copo de 200 ml
+  'x:refresco': { n: 'Refresco adoçado (53 kcal/200 ml: TACO açúcar a 6,85%)', from: [[494, 0.0685]] },
+  'x:refresco-zero': { n: 'Refresco sem açúcar (~39 kcal/200 ml: TACO açúcar a 5%)', from: [[494, 0.05]] },
   'x:pvt': { n: 'PVT hidratada (rótulo médio ÷ 3)', k: 110, p: 17, c: 10, g: 0.3, f: 5.7 },
   'x:soja': { n: 'Soja em grão cozida (USDA)', k: 172, p: 18.2, c: 8.4, g: 9, f: 6 },
   'x:bulgur': { n: 'Trigo para quibe cozido (USDA)', k: 83, p: 3.1, c: 18.6, g: 0.2, f: 4.5 },
   'x:barra': { n: 'Barra de cereais (rótulo médio)', k: 380, p: 5, c: 72, g: 8, f: 4 },
-  // TODO: trocar pelos valores do rótulo do picolé da Bejo (o que o bandejão de SC serve)
-  'x:sorvete': { n: 'Picolé de creme (estimativa — rótulo Bejo pendente)', k: 160, p: 2.5, c: 24, g: 5.5, f: 0 },
+  // picolé do bandejão: 58 kcal por unidade (60 g) → 96,7 kcal/100 g; macros da estimativa antiga reescalonados
+  'x:sorvete': { n: 'Picolé de creme (58 kcal por unidade)', k: 96.7, p: 1.5, c: 14.5, g: 3.3, f: 0 },
   'x:agua': { n: 'Água / vinagre', k: 0, p: 0, c: 0, g: 0, f: 0 },
   // concha extra de molho (a tia capricha): valores por 100 g
   'x:molho-tomate': { n: 'Molho de tomate do prato', k: 70, p: 1.2, c: 6, g: 4.5, f: 0.8 },
@@ -273,8 +275,8 @@ export const DISHES = {
   minipao: d('pao', 'Minipão francês', [[53, 100]], M.un('unidade', 25), 0, false), // só entra por padrão em dia de hambúrguer (app.js)
   pao_integral: d('pao', 'Pão integral', [[52, 100]], M.un('unidade', 25), 0, false),
   refresco: d('bebida', 'Refresco adoçado', [['x:refresco', 100]], [['copo (200 ml)', 200], ['ml', 1]], 0, false),
-  // o refresco do bandejão tem ~39 kcal/200 ml com ou sem açúcar; a opção muda só o rótulo
-  refresco_zero: d('bebida', 'Refresco sem açúcar', [['x:refresco', 100]], [['copo (200 ml)', 200], ['ml', 1]], 0, false),
+  // refresco do bandejão: 53 kcal/200 ml com açúcar, ~39 kcal/200 ml sem
+  refresco_zero: d('bebida', 'Refresco sem açúcar', [['x:refresco-zero', 100]], [['copo (200 ml)', 200], ['ml', 1]], 0, false),
   suco_laranja: d('bebida', 'Suco de laranja natural', [[215, 100]], [['copo (200 ml)', 200], ['ml', 1]], 0, false),
   cafe: d('bebida', 'Café sem açúcar', [[471, 100]], [['xícara (50 ml)', 50], ['ml', 1]], 0, false),
 };
