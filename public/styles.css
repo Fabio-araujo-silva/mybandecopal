@@ -98,6 +98,11 @@ a { color: var(--accent); }
 
 main { padding: 14px 16px 0; }
 
+/* linha do cardápio: discreta, para quem só quer saber o que tem */
+.menu-line { margin: 0 4px 10px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.menu-line .ml-k { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-right: 4px; }
+.menu-line .leaf { color: var(--veg); font-size: 9px; vertical-align: 1px; }
+
 /* resumo */
 .summary {
   background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
@@ -155,6 +160,9 @@ main { padding: 14px 16px 0; }
 .name { font-weight: 500; }
 .ref { font-size: 12px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ref.generic { color: var(--carb); }
+.flavor { font-size: 12.5px; font-weight: 500; color: var(--accent); }
+.flavor.pending { font-weight: 400; color: var(--faint); }
+.section h2 .h2-note { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--accent); }
 .kc { font-weight: 600; white-space: nowrap; }
 .kc small { font-weight: 500; color: var(--muted); font-size: 12px; }
 

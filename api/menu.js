@@ -2,6 +2,7 @@ import { getMenu } from '../lib/usp.js';
 import { recordUspFetch } from '../lib/stats.js';
 import { archiveMenu } from '../lib/archive.js';
 import { parseMenu } from '../public/nutrition.js';
+import '../lib/receitas.js';
 
 // Detecta pratos que o parser não reconheceu, para aparecerem na página /admin e virarem regra.
 function genericItems(menu) {

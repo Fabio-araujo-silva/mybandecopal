@@ -3,25 +3,33 @@
 // Funciona no navegador e no Node (scripts/check-menus.mjs).
 
 // ---------------------------------------------------------------------------
-// Ingredientes fora da TACO (ou derivados dela). `from` = [idTACO, fator por grama].
+// Ingredientes fora da TACO, por 100 g. `tbca` = código na TBCA 7.3 (FCF-USP/FoRC,
+// www.tbca.net.br), de onde vêm os valores; `from` = [idTACO, fator por grama].
+// Suco e picolé ficam com os valores medidos no bandejão.
 export const EXTRAS = {
-  'x:macarrao': { n: 'Macarrão cozido (TACO cru, rendimento 2,5×)', from: [[40, 0.4]] },
-  'x:graodebico': { n: 'Grão-de-bico cozido (TACO cru, rendimento 2,4×)', from: [[575, 1 / 2.4]] },
-  'x:leite': { n: 'Leite integral (TACO pó reconstituído a 13%)', from: [[459, 0.13]] },
-  'x:gelatina': { n: 'Gelatina pronta (TACO pó a 15%)', from: [[515, 0.15]] },
+  'x:macarrao': { n: 'Macarrão cozido', tbca: 'BRC0116A', k: 101, p: 3.73, c: 21, g: 0.48, f: 1.2 },
+  'x:graodebico': { n: 'Grão-de-bico cozido, drenado', tbca: 'BRC0031T', k: 115, p: 6.2, c: 21.5, g: 1.7, f: 5.5 },
+  'x:leite': { n: 'Leite integral UHT', tbca: 'BRC0044G', k: 65, p: 2.35, c: 7.16, g: 3.04, f: 0 },
+  'x:gelatina': { n: 'Gelatina pronta', tbca: 'BRC0060K', k: 57, p: 1.24, c: 12.8, g: 0.08, f: 0 },
   // suco com açúcar do bandejão: 53 kcal por copo de 200 ml
   'x:refresco': { n: 'Refresco adoçado (53 kcal/200 ml: TACO açúcar a 6,85%)', from: [[494, 0.0685]] },
   'x:refresco-zero': { n: 'Refresco sem açúcar (~39 kcal/200 ml: TACO açúcar a 5%)', from: [[494, 0.05]] },
-  'x:pvt': { n: 'PVT hidratada (rótulo médio ÷ 3)', k: 110, p: 17, c: 10, g: 0.3, f: 5.7 },
-  'x:soja': { n: 'Soja em grão cozida (USDA)', k: 172, p: 18.2, c: 8.4, g: 9, f: 6 },
-  'x:bulgur': { n: 'Trigo para quibe cozido (USDA)', k: 83, p: 3.1, c: 18.6, g: 0.2, f: 4.5 },
-  'x:barra': { n: 'Barra de cereais (rótulo médio)', k: 380, p: 5, c: 72, g: 8, f: 4 },
+  'x:pvt': { n: 'PVT hidratada', tbca: 'BRC0170T', k: 188, p: 25.4, c: 23.1, g: 0.36, f: 4.8 },
+  'x:soja': { n: 'Soja em grão cozida', tbca: 'BRC0147T', k: 168, p: 16.2, c: 9.48, g: 9.26, f: 8.92 },
+  'x:bulgur': { n: 'Trigo para quibe cozido', tbca: 'BRC0405A', k: 80, p: 3.08, c: 18.6, g: 0.24, f: 4.5 },
+  'x:barra': { n: 'Barra de cereais', tbca: 'BRC0082A', k: 396, p: 6.25, c: 76.1, g: 8.53, f: 5.25 },
+  'x:torrone': { n: 'Torrone', tbca: 'BRC0130K', k: 391, p: 3.33, c: 92.4, g: 1.67, f: 3.3 },
+  'x:escarola-refogada': { n: 'Escarola refogada', tbca: 'BRC0950B', k: 33, p: 1.92, c: 3.9, g: 1.55, f: 2.27 },
+  'x:sagu': { n: 'Sagu com suco de uva', tbca: 'BRC0083K', k: 88, p: 0.03, c: 22.2, g: 0, f: 0.18 },
+  'x:catchup': { n: 'Catchup', tbca: 'BRC0030L', k: 123, p: 1.12, c: 29.6, g: 0.11, f: 0.32 },
+  'x:mostarda': { n: 'Mostarda (molho)', tbca: 'BRC0029L', k: 60, p: 3.74, c: 5.83, g: 3.34, f: 4 },
+  'x:chocolate-po': { n: 'Chocolate em pó', tbca: 'BRC0094K', k: 387, p: 8.9, c: 81.4, g: 5, f: 9.53 },
   // picolé do bandejão: 58 kcal por unidade (60 g) → 96,7 kcal/100 g; macros da estimativa antiga reescalonados
   'x:sorvete': { n: 'Picolé de creme (58 kcal por unidade)', k: 96.7, p: 1.5, c: 14.5, g: 3.3, f: 0 },
   'x:agua': { n: 'Água / vinagre', k: 0, p: 0, c: 0, g: 0, f: 0 },
-  // concha extra de molho (a tia capricha): valores por 100 g
-  'x:molho-tomate': { n: 'Molho de tomate do prato', k: 70, p: 1.2, c: 6, g: 4.5, f: 0.8 },
-  'x:molho-creme': { n: 'Molho cremoso do prato', k: 160, p: 2.5, c: 5, g: 14, f: 0.2 },
+  // concha extra de molho (a tia capricha)
+  'x:molho-tomate': { n: 'Molho de tomate caseiro', tbca: 'BRC1192B', k: 46, p: 1.92, c: 7.84, g: 1.31, f: 2.91 },
+  'x:molho-creme': { n: 'Molho branco', tbca: 'BRC0004G', k: 153, p: 4.34, c: 10.9, g: 10.3, f: 0.19 },
 };
 
 // quando o prato tem molho, dá pra pedir uma concha a mais. Detecta o tipo pelo nome.
@@ -149,7 +157,7 @@ export const DISHES = {
   pure_mandioquinha: d('guarnicao', 'Purê de mandioquinha', [[86, 80], ['x:leite', 15], [261, 5]], M.servir, 2),
   virado_legumes: d('guarnicao', 'Virado de legumes (farinha de mandioca e legumes)', [[122, 30], [109, 35], [45, 35]], M.legume, 2),
   farinha_mandioca: d('guarnicao', 'Farinha de mandioca torrada', [[122, 100]], M.colherSopa(10), 1, false),
-  escarola_refogada: d('guarnicao', 'Escarola refogada (como almeirão refogado)', [[85, 100]], M.legume, 2, false),
+  escarola_refogada: d('guarnicao', 'Escarola refogada', [['x:escarola-refogada', 100]], M.legume, 2, false),
   catalonha_refogada: d('guarnicao', 'Catalonha refogada', [[106, 100]], M.legume, 2, false),
   polenta_frita: d('guarnicao', 'Polenta frita', [[62, 85], [272, 15]], M.un('pedaço', 40), 3, false),
   polenta: d('guarnicao', 'Polenta', [[62, 100]], M.servir, 2),
@@ -244,7 +252,7 @@ export const DISHES = {
   goiabada: d('doce', 'Goiabada', [[198, 100]], M.un('fatia', 30), 1, false),
   pacoca: d('doce', 'Paçoca', [[579, 100]], M.un('unidade', 20), 1, false),
   pe_moleque: d('doce', 'Pé-de-moleque', [[580, 100]], M.un('unidade', 25), 1, false),
-  torrone: d('doce', 'Torrone (aprox.: pé-de-moleque)', [[580, 100]], M.un('unidade', 25), 1, false),
+  torrone: d('doce', 'Torrone', [['x:torrone', 100]], M.un('unidade', 25), 1, false),
   maria_mole: d('doce', 'Maria-mole', [[504, 100]], M.un('unidade', 30), 1, false),
   marmelada: d('doce', 'Marmelada', [[506, 100]], M.un('fatia', 30), 1, false),
   doce_abobora: d('doce', 'Doce de abóbora', [[500, 100]], M.un('porção', 30), 1, false),
@@ -266,7 +274,7 @@ export const DISHES = {
   bolo: d('doce', 'Bolo simples (milho)', [[18, 100]], M.un('fatia', 60), 1, false),
   barra_cereal: d('doce', 'Barra de cereais', [['x:barra', 100]], M.un('unidade', 25), 1, false),
   picole: d('doce', 'Picolé/sorvete de creme', [['x:sorvete', 100]], M.un('unidade', 60), 1, false),
-  sagu: d('doce', 'Sagu (fécula de mandioca, açúcar e suco)', [[124, 12], [494, 12], ['x:agua', 76]], M.un('porção', 100), 1, false),
+  sagu: d('doce', 'Sagu com suco de uva', [['x:sagu', 100]], M.un('porção', 100), 1, false),
   goiabinha: d('doce', 'Biscoito recheado de goiaba', [[8, 55], [198, 45]], M.un('unidade', 25), 1, false),
   romeu_julieta: d('doce', 'Romeu e Julieta (goiabada e queijo)', [[198, 60], [461, 40]], M.un('porção', 40), 1, false),
   doce_generico: d('doce', 'Doce (genérico: doce de leite)', [[501, 100]], M.un('porção', 30), 1, false),
@@ -530,6 +538,30 @@ const RULES = [
   [/cafe\b/, 'cafe'],
 ];
 
+// ---------------------------------------------------------------------------
+// Receitas vistas no cartaz de ingredientes do bandejão (public/receitas.json). Cada uma refina
+// um prato que já existe (mesma chave) ou cria um novo, herdando medidas/quantidade de `base`.
+// Os valores continuam vindo da TACO/TBCA: do cartaz só se usam os ingredientes.
+// Chamar antes de createDb (o cálculo por 100 g fica em cache).
+export function applyReceitas(data) {
+  const rules = [];
+  for (const r of data?.receitas ?? []) {
+    const from = DISHES[r.chave] ?? DISHES[r.base];
+    const kind = r.tipo ?? from?.kind;
+    const units = r.medidas ?? from?.units;
+    const comp = r.composicao ?? from?.comp;
+    if (!r.chave || !kind || !units || !comp?.length) continue; // incompleta: ignora em vez de quebrar o app
+    DISHES[r.chave] = {
+      ...d(kind, r.nome ?? from.label, comp, units, r.qtd ?? from?.qty ?? 1, r.oleo ?? from?.oleo ?? true),
+      cartaz: r.ingredientes ?? null,
+    };
+    for (const t of r.texto ?? []) {
+      try { rules.push([new RegExp(t), r.chave]); } catch { /* regex inválida: só não casa */ }
+    }
+  }
+  RULES.unshift(...rules); // regras das receitas vêm antes das genéricas
+}
+
 export const norm = (s) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -690,7 +722,7 @@ export function createDb(taco) {
       const f = ingredient(ref);
       if (!f) throw new Error(`ingrediente ausente: ${ref}`);
       for (const m of ['k', 'p', 'c', 'g', 'f']) acc[m] += (f[m] * w) / total;
-      acc.sources.push({ n: f.n, pct: Math.round((w / total) * 100), taco: typeof ref === 'number' });
+      acc.sources.push({ n: f.n, pct: Math.round((w / total) * 100), taco: typeof ref === 'number', tbca: f.tbca ?? null });
     }
     cache.set(dishOrTacoId, acc);
     return acc;

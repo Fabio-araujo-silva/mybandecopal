@@ -4,6 +4,7 @@
 import { readFile } from 'node:fs/promises';
 import { getMenu, getRestaurants } from '../lib/usp.js';
 import { DISHES, choiceGroups, createDb, parseMenu } from '../public/nutrition.js';
+import '../lib/receitas.js';
 
 const verbose = process.argv.includes('--verbose');
 const taco = JSON.parse(await readFile(new URL('../public/taco.json', import.meta.url), 'utf8'));

@@ -1,4 +1,4 @@
-import { DISHES, ROLE_TITLE, choiceGroups, createDb, norm, parseMenu } from './nutrition.js';
+import { DISHES, ROLE_TITLE, applyReceitas, choiceGroups, createDb, norm, parseMenu } from './nutrition.js';
 
 const DEFAULT_RESTAURANT = { id: '2', name: 'Área 1 · São Carlos' };
 const AJUSTE_BANDEJAO = 0.10;
@@ -54,6 +54,7 @@ const state = {
   sugarFree: store.get('sugarFree', false),
   choicePrefs: store.get('choices', {}),
   adjust: store.get('adjust', true),
+  registros: {}, // { "dd/mm/aaaa|lunch": { suco: { sabores, at }, saladas: { itens, at } } } — feito no /admin
   expanded: new Set(),
   error: null,
 };
@@ -86,11 +87,11 @@ function unitLabel(name, q) {
 const DINNER_FROM = 13 * 60 + 30;
 const isDinnerTime = ({ hour, minute }) => hour * 60 + minute >= DINNER_FROM;
 
-function spNow() {
+function spNow(at = new Date()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-  }).formatToParts(new Date()).map((p) => [p.type, p.value]));
-  return { date: `${parts.day}/${parts.month}/${parts.year}`, hour: Number(parts.hour), minute: Number(parts.minute) };
+  }).formatToParts(at).map((p) => [p.type, p.value]));
+  return { date: `${parts.day}/${parts.month}/${parts.year}`, hour: Number(parts.hour), minute: Number(parts.minute), hhmm: `${parts.hour}h${parts.minute}` };
 }
 
 function prettyRestaurant(name) {
@@ -115,6 +116,47 @@ async function getJson(url) {
   return body;
 }
 
+// registro da refeição feito no /admin por quem está no bandejão: sabor do suco e saladas do dia
+// (a API da USP só diz "Suco" e "Saladas: Diversas"). Corre por fora do cardápio: se falhar ou
+// demorar, o cardápio aparece do mesmo jeito.
+let registrosAt = 0;
+async function loadRegistros() {
+  const id = state.restaurant.id;
+  registrosAt = Date.now();
+  try {
+    const { registros } = await getJson(`/api/registro?id=${encodeURIComponent(id)}`);
+    if (id !== state.restaurant.id || JSON.stringify(registros) === JSON.stringify(state.registros)) return;
+    const saladasAntes = JSON.stringify(registroDaRefeicao()?.saladas?.itens ?? null);
+    state.registros = registros || {};
+    // as saladas mudam os itens da refeição; o sabor do suco só o rótulo
+    if (state.parsed && JSON.stringify(registroDaRefeicao()?.saladas?.itens ?? null) !== saladasAntes) buildMeal();
+    render();
+  } catch { /* sem registro, tudo bem */ }
+}
+// quem deixa a página aberta vê o que for registrado depois (o cache do servidor é de 30 s)
+function refreshRegistros() {
+  if (document.visibilityState === 'visible' && Date.now() - registrosAt > 2 * 60000) loadRegistros();
+}
+
+function registroDaRefeicao() {
+  const day = state.menu?.days[state.dayIdx];
+  return day ? state.registros[`${day.date}|${state.meal}`] ?? null : null;
+}
+
+// TACO + receitas do cartaz do bandejão, baixadas uma vez. As receitas entram antes de criar o
+// banco (o cálculo por 100 g fica em cache) e antes de montar a refeição (mudam as regras).
+let dataReq = null;
+function loadData() {
+  dataReq ||= Promise.all([getJson('/taco.json'), getJson('/receitas.json').catch(() => null)])
+    .then(([taco, receitas]) => {
+      if (receitas) applyReceitas(receitas);
+      state.taco = taco;
+      state.db = createDb(taco);
+    })
+    .catch((err) => { dataReq = null; throw err; }); // falhou: "tentar de novo" baixa de novo
+  return dataReq;
+}
+
 let menuReq = 0;
 async function loadMenu() {
   const seq = ++menuReq;          // ignora respostas de um restaurante já trocado
@@ -122,26 +164,38 @@ async function loadMenu() {
   state.error = null;
   state.menu = null;
   state.manual = false;
+  state.registros = {};
+  loadRegistros();
   render();
-  // se a TACO não carregou antes (ex.: "tentar de novo"), tenta de novo agora
-  if (!state.db) {
-    try { const taco = await getJson('/taco.json'); state.taco = taco; state.db = createDb(taco); } catch { /* segue; menu ainda aparece */ }
-  }
+  // TACO/receitas em paralelo com o cardápio (na primeira vez, ou de novo se falhou antes)
+  let dataError = null;
+  const data = loadData().catch((err) => { dataError = `tabela TACO: ${err.message}`; });
   let menu = null, error = null;
   try { menu = await getJson(`/api/menu?id=${encodeURIComponent(id)}`); } catch (err) { error = err.message; }
+  await data;
   if (seq !== menuReq || id !== state.restaurant.id) return; // chegou tarde: outro restaurante foi escolhido
   state.menu = menu;
-  state.error = error;
+  state.error = error || dataError;
   if (menu) pickDefaultDay();
   buildMeal();
   render();
+}
+
+const isOpen = (m) => m && !parseMenu(m.menu).closed;
+
+// refeição que abre num dia: hoje segue o horário (jantar a partir das 13h30); outro dia abre
+// na primeira refeição dele (almoço, ou o jantar se não tiver almoço)
+function defaultMealFor(day, now = spNow()) {
+  let meal = day.date === now.date && isDinnerTime(now) ? 'dinner' : 'lunch';
+  if (!isOpen(day[meal])) meal = meal === 'lunch' ? 'dinner' : 'lunch';
+  if (!isOpen(day[meal])) meal = 'lunch';
+  return meal;
 }
 
 function pickDefaultDay() {
   const now = spNow();
   const { date } = now;
   const days = state.menu.days;
-  const isOpen = (m) => m && !parseMenu(m.menu).closed;
   let idx = days.findIndex((d) => d.date === date);
   if (idx < 0 || (!isOpen(days[idx].lunch) && !isOpen(days[idx].dinner))) {
     const next = days.findIndex((d, i) => i > Math.max(idx, -1) && (isOpen(d.lunch) || isOpen(d.dinner)));
@@ -149,20 +203,25 @@ function pickDefaultDay() {
   }
   state.dayIdx = idx;
   const day = days[idx];
-  const isToday = day?.date === date;
-  let meal = isToday && isDinnerTime(now) ? 'dinner' : 'lunch';
-  if (day && !isOpen(day[meal])) meal = meal === 'lunch' ? 'dinner' : 'lunch';
-  if (day && !isOpen(day[meal])) meal = 'lunch';
-  state.meal = meal;
+  state.meal = day ? defaultMealFor(day, now) : 'lunch';
 }
 
 function currentMeal() {
   return state.menu?.days[state.dayIdx]?.[state.meal] ?? null;
 }
 
+// saladas registradas no /admin entram no lugar das que a API manda ("Saladas: Diversas");
+// sem registro fica tudo como veio
+function withSaladas(parsed) {
+  const itens = (registroDaRefeicao()?.saladas?.itens ?? []).filter((k) => DISHES[k]?.kind === 'salada');
+  if (parsed.closed || !itens.length) return parsed;
+  const saladas = itens.map((k, i) => ({ id: `s${i}`, text: DISHES[k].label, key: k, role: 'salada', group: 'salada', generic: false, sauce: null }));
+  return { ...parsed, items: [...parsed.items.filter((it) => it.group !== 'salada'), ...saladas] };
+}
+
 function buildMeal() {
   const meal = currentMeal();
-  state.parsed = meal ? parseMenu(meal.menu) : null;
+  state.parsed = meal ? withSaladas(parseMenu(meal.menu)) : null;
   state.expanded.clear();
   state.selected = {};
   if (!state.parsed || state.parsed.closed) return;
@@ -193,6 +252,24 @@ function itemBase(it) {
   // suco/refresco: com ou sem açúcar (preferência da pessoa, vale para todas as refeições)
   if (it.key === 'refresco' && state.sugarFree) return 'refresco_zero';
   return it.key;
+}
+
+// ---------------------------------------------------------------- sabor do suco
+const isSuco = (it) => it.key === 'refresco';
+// "Suco"/"refresco" sem sabor no texto do cardápio: o sabor só vem do registro do /admin
+const genericSuco = (it) => isSuco(it) && /^(suco|refresco|bebida)s?$/.test(norm(it.text));
+
+// "registrado 17h45" (com a data quando foi registrado em outro dia)
+function registeredAt(iso) {
+  const at = spNow(new Date(iso));
+  const sameDay = at.date === state.menu?.days[state.dayIdx]?.date;
+  return `registrado ${sameDay ? '' : `${at.date.slice(0, 5)} `}${at.hhmm}`;
+}
+
+function sucoTag(it) {
+  const s = registroDaRefeicao()?.suco;
+  if (s) return ` <span class="flavor">${esc(s.sabores)} – ${registeredAt(s.at)}</span>`;
+  return genericSuco(it) ? ' <span class="flavor pending">(sabor não registrado ainda)</span>' : '';
 }
 
 // pão só entra por padrão quando a refeição tem hambúrguer
@@ -251,6 +328,26 @@ function setSauce(it, delta) {
   render();
 }
 
+// fio de azeite na salada (botão embaixo das saladas): também vale só para a refeição atual
+const FIO_AZEITE_G = 5;
+const AZEITE_TACO = 260; // Azeite, de oliva, extra virgem
+const azeiteCount = () => Number(mealPortions().azeite || 0);
+
+function azeiteNutrients() {
+  const n = azeiteCount();
+  const f = n && state.db?.byId.get(AZEITE_TACO);
+  if (!f) return { kcal: 0, p: 0, c: 0, g: 0, f: 0 };
+  const r = (n * FIO_AZEITE_G) / 100;
+  return { kcal: f.k * r, p: f.p * r, c: f.c * r, g: f.g * r, f: f.f * r };
+}
+
+function setAzeite(delta) {
+  const next = Math.max(0, Math.min(3, azeiteCount() + delta));
+  state.portions[mealKey()] = { ...mealPortions(), azeite: next };
+  savePortions();
+  render();
+}
+
 function itemNutrients(it) {
   const p = portion(it);
   const n = state.db.nutrients({ base: itemBase(it), grams: p.grams, oleo: DISHES[it.key].oleo }, state.adjust ? AJUSTE_BANDEJAO : 0);
@@ -265,6 +362,10 @@ function totals() {
     if (!isActive(it)) continue;
     const n = itemNutrients(it);
     for (const k of Object.keys(t)) t[k] += n[k];
+  }
+  if (state.parsed?.items.some((it) => it.group === 'salada')) {
+    const a = azeiteNutrients();
+    for (const k of Object.keys(t)) t[k] += a[k];
   }
   return t;
 }
@@ -291,6 +392,7 @@ function render() {
   const sections = $('#sections');
 
   const bottom = $('#bottom');
+  $('#menuLine').hidden = true;
   if (state.error) {
     summary.hidden = true;
     bottom.hidden = true;
@@ -316,6 +418,7 @@ function render() {
   summary.hidden = false;
   bottom.hidden = false;
   const t = totals();
+  renderMenuLine($('#menuLine'));
   renderSummary(summary, t);
   renderSections(sections);
   renderRatings();
@@ -399,6 +502,24 @@ function renderMealToggle() {
   }
 }
 
+// Uma linha discreta para quem só quer saber o que tem: só o que muda de um dia para o outro
+// (prato, guarnição, sobremesa), mais saladas e suco quando foram registrados no /admin.
+function renderMenuLine(el) {
+  const items = state.parsed.items;
+  const names = (group) => items.filter((it) => it.group === group)
+    .map((it) => `${it.role === 'vegetariano' ? '<span class="leaf">●</span> ' : ''}${esc(it.text)}`);
+  const reg = registroDaRefeicao();
+  const parts = [
+    names('prato').join(' ou '),
+    ...names('guarnicao'),
+    reg?.saladas ? `Salada: ${names('salada').join(', ')}` : '', // salada só quando registrada no /admin
+    names('sobremesa').join(' ou '),
+    reg?.suco ? `Suco de ${esc(reg.suco.sabores)}` : '',
+  ].filter(Boolean);
+  el.innerHTML = `<span class="ml-k">Cardápio</span> ${parts.join(' · ')}`;
+  el.hidden = !parts.length;
+}
+
 function macroPct(t) {
   const kp = t.p * 4, kc = t.c * 4, kg = t.g * 9, sum = kp + kc + kg || 1;
   return { p: kp / sum, c: kc / sum, g: kg / sum };
@@ -451,14 +572,24 @@ function renderSections(root) {
       return `<button class="choice" data-choice="${choiceGroup}" data-id="${id}" aria-pressed="${state.selected[choiceGroup] === id}">${veg}${esc(it.text)}</button>`;
     }).join('')}</div>` : '';
     const visible = list.filter((it) => isActive(it));
+    const saladas = s === 'salada' ? registroDaRefeicao()?.saladas : null;
     return `<section class="section">
-      <h2>${ROLE_TITLE[s]}</h2>${chips}
+      <h2>${ROLE_TITLE[s]}${saladas ? ` <span class="h2-note">${registeredAt(saladas.at)}</span>` : ''}</h2>${chips}
       <div class="items">${visible.map(renderItem).join('')}</div>
+      ${s === 'salada' ? azeiteRow() : ''}
     </section>`;
   }).join('');
 
   root.querySelectorAll('[data-choice]').forEach((b) => (b.onclick = () => choose(b.dataset.choice, b.dataset.id)));
+  root.querySelectorAll('[data-azeite]').forEach((b) => (b.onclick = () => setAzeite(b.dataset.azeite === 'plus' ? 1 : -1)));
   root.querySelectorAll('.item').forEach(bindItem);
+}
+
+function azeiteRow() {
+  const n = azeiteCount();
+  if (!n) return '<button class="sauce" data-azeite="plus">＋ fio de azeite na salada</button>';
+  return `<div class="sauce on"><span>+ ${n} fio${n > 1 ? 's' : ''} de azeite <small>(+${fmt(azeiteNutrients().kcal)} kcal)</small></span>
+    <span class="sauce-btns"><button data-azeite="minus" aria-label="Menos azeite">−</button><button data-azeite="plus" aria-label="Mais azeite" ${n >= 3 ? 'disabled' : ''}>+</button></span></div>`;
 }
 
 function renderItem(it) {
@@ -469,7 +600,8 @@ function renderItem(it) {
   const overridden = typeof base === 'number';
   const liquid = p.unit[0] === 'ml' || p.unit[0].startsWith('copo') || p.unit[0].startsWith('xícara');
   const amount = p.q > 0 ? ` · ${fmt(p.grams)} ${liquid ? 'ml' : 'g'}` : '';
-  const label = DISHES[typeof base === 'string' ? base : it.key].label;
+  const shown = DISHES[typeof base === 'string' ? base : it.key];
+  const label = shown.label;
   const ref = overridden
     ? `TACO: ${state.db.byId.get(base).n}`
     : it.generic ? `estimativa genérica · ${label}` : `≈ ${label}`;
@@ -480,7 +612,7 @@ function renderItem(it) {
   return `<div class="item${p.q === 0 ? ' off' : ''}" data-id="${it.id}" data-step="${step}">
     <div class="item-top">
       <button class="name-btn" data-act="toggle" aria-expanded="${open}">
-        <span class="name">${esc(it.text)}</span>
+        <span class="name">${esc(it.text)}${isSuco(it) ? sucoTag(it) : ''}</span>
         <span class="ref${it.generic && !overridden ? ' generic' : ''}">${esc(ref + amount)}</span>
       </button>
       <span class="kc">${fmt(n.kcal)} <small>kcal</small></span>
@@ -511,8 +643,9 @@ function renderItem(it) {
     })() : ''}
     ${open ? `<div class="detail">
       ${n.extra ? `<span>Inclui +${fmt(n.extra)} kcal de gordura do preparo.</span>` : ''}
+      ${shown.cartaz ? `<span>Ingredientes no cartaz do bandejão: ${esc(shown.cartaz)}.</span>` : ''}
       <span>Por 100 g: ${fmt(per.k)} kcal · composição usada:</span>
-      <ul>${per.sources.map((s) => `<li>${s.pct}% ${esc(s.n)}${s.taco ? '' : ' (estimativa)'}</li>`).join('')}</ul>
+      <ul>${per.sources.map((s) => `<li>${s.pct}% ${esc(s.n)}${s.taco ? '' : s.tbca ? ` (TBCA ${s.tbca})` : ' (estimativa)'}</li>`).join('')}</ul>
       <button class="link" data-act="swap">Trocar por outro alimento da TACO</button>
     </div>` : ''}
   </div>`;
@@ -660,8 +793,11 @@ $('#foodReset').onclick = () => {
 $('#days').addEventListener('click', (e) => {
   const b = e.target.closest('[data-day]');
   if (!b) return;
-  state.manual = true;
   state.dayIdx = Number(b.dataset.day);
+  const day = state.menu.days[state.dayIdx];
+  state.meal = defaultMealFor(day);
+  // hoje (aberto) volta a seguir o relógio e vira para o jantar sozinho; outro dia fica onde a pessoa pôs
+  state.manual = !(day.date === spNow().date && (isOpen(day.lunch) || isOpen(day.dinner)));
   buildMeal();
   render();
   track.meal();
@@ -685,6 +821,8 @@ function autoSwitchMeal() {
 }
 document.addEventListener('visibilitychange', autoSwitchMeal);
 setInterval(autoSwitchMeal, 60000);
+document.addEventListener('visibilitychange', refreshRegistros);
+setInterval(refreshRegistros, 60000);
 $('#restaurantBtn').onclick = openRestaurantSheet;
 $('#resetBtn').onclick = () => {
   state.portions = {};
@@ -703,11 +841,6 @@ $('#ratings').addEventListener('click', (e) => {
 // ---------------------------------------------------------------- início
 (async function init() {
   render();
-  const tacoPromise = getJson('/taco.json').then((taco) => {
-    state.taco = taco;
-    state.db = createDb(taco);
-  });
-  await Promise.all([tacoPromise.catch((err) => { state.error = `tabela TACO: ${err.message}`; }), loadMenu()]);
-  render();
+  await loadMenu();
   track.view();
 })();

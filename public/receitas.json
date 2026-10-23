@@ -1,0 +1,91 @@
+{
+  "_leia": [
+    "Receitas montadas a partir do cartaz de ingredientes do bandejão (foto). Do cartaz só valem os INGREDIENTES: kcal e macros vêm sempre da TACO (ids numéricos de public/taco.json) e, para o que a TACO não tem, dos EXTRAS da TBCA ('x:...' em public/nutrition.js).",
+    "Suco e picolé têm valores fixos medidos no bandejão e não entram aqui.",
+    "chave: prato de DISHES (nutrition.js) a refinar, ou uma chave nova. base: prato do qual uma chave nova herda medidas e quantidade padrão.",
+    "texto: regex (texto do cardápio sem acento e em minúsculas) que leva a esta receita; vem antes das regras genéricas.",
+    "composicao: [ingrediente, partes] somando 100. oleo: false quando a receita já lista o óleo/margarina (aí não entra o +10% de gordura do preparo).",
+    "Saladas levam sempre tipo 'salada' e nome: são elas que aparecem para marcar no /admin (Registro da refeição → Saladas).",
+    "Gerido pela skill cardapio-receitas."
+  ],
+  "receitas": [
+    {
+      "chave": "hamburguer_barbecue",
+      "base": "hamburguer",
+      "tipo": "proteina",
+      "nome": "Hambúrguer bovino ao molho barbecue",
+      "texto": ["^hamburguer( bovino)? (ao )?molho barbecue"],
+      "ingredientes": "Hambúrguer bovino, alho, cebola, açúcar cristal, amido de milho, catchup, molho shoyu, mostarda, óleo de soja, polpa de tomate, sal e salsa",
+      "composicao": [[417, 78], [160, 6], ["x:catchup", 4], [492, 3], [107, 4], [518, 2], ["x:mostarda", 1], [42, 1], [272, 1]],
+      "oleo": false,
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Hamburguer ao Molho Barbecue" }]
+    },
+    {
+      "chave": "hamburguer_pvt_barbecue",
+      "base": "hamburguer_pvt",
+      "tipo": "vegetariano",
+      "nome": "Hambúrguer de PVT ao molho barbecue",
+      "texto": ["^hamburguer de (pvt|pts|soja).*barbecue"],
+      "ingredientes": "Farinha de trigo, farinha de rosca, proteína de soja, alho, cebola, açúcar cristal, amido de milho, catchup, molho shoyu, mostarda, óleo de soja, polpa de tomate, sal e salsa (o cartaz chamou de 'hambúrguer de lentilha', mas não lista lentilha)",
+      "composicao": [["x:pvt", 55], [35, 8], [34, 7], [107, 8], [82, 1], [272, 2], [160, 7], ["x:catchup", 5], [492, 3], [518, 2], ["x:mostarda", 1], [42, 1]],
+      "oleo": false,
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Hambúrguer de Lentilha Molho Barbecue" }]
+    },
+    {
+      "chave": "macarrao_primavera",
+      "nome": "Macarrão à primavera",
+      "ingredientes": "Macarrão parafuso, alho, cebola, cenoura, ervilha, margarina, milho, salsa e sal",
+      "composicao": [["x:macarrao", 72], [109, 8], [560, 7], [45, 7], [107, 3], [263, 2.5], [82, 0.5]],
+      "oleo": false,
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Macarrão Primavera" }]
+    },
+    {
+      "chave": "brigadeirao",
+      "nome": "Brigadeirão (leite, açúcar, amido e chocolate)",
+      "ingredientes": "Leite integral, açúcar cristal, amido de milho e chocolate em pó",
+      "composicao": [["x:leite", 74], [492, 13], [42, 6], ["x:chocolate-po", 7]],
+      "oleo": false,
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Brigadeirão" }]
+    },
+    {
+      "chave": "salada_fradinho",
+      "base": "salada_leguminosa",
+      "tipo": "salada",
+      "nome": "Salada de feijão-fradinho",
+      "texto": ["salada.*fradinho"],
+      "ingredientes": "Feijão-fradinho, cebola, tomate e salsa",
+      "composicao": [[563, 75], [107, 10], [157, 12], [153, 3]],
+      "oleo": false,
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Feijão Fradinho" }]
+    },
+    {
+      "chave": "escarola",
+      "tipo": "salada",
+      "nome": "Chicória",
+      "ingredientes": "Chicória",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Chicória" }]
+    },
+    {
+      "chave": "tomate",
+      "tipo": "salada",
+      "nome": "Tomate",
+      "ingredientes": "Tomate",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Tomate" }]
+    },
+    {
+      "chave": "arroz",
+      "ingredientes": "Arroz, alho, alho-poró, cebola, óleo de soja, sal e salsão",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Arroz Branco" }]
+    },
+    {
+      "chave": "arroz_integral",
+      "ingredientes": "Arroz integral, alho, alho-poró, cebola, óleo de soja e sal",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Arroz Integral" }]
+    },
+    {
+      "chave": "feijao",
+      "ingredientes": "Feijão, alho, óleo de soja e sal",
+      "visto": [{ "data": "2026-10-23", "refeicao": "almoço", "restaurante": "Área 1 · São Carlos", "no_cartaz": "Feijão Carioca" }]
+    }
+  ]
+}

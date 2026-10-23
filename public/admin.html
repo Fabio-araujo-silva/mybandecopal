@@ -55,6 +55,22 @@
     .toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
     .toolbar button { font-size:13px; color:var(--muted); background:none; border:0; }
     .hint { font-size:12px; color:var(--faint); margin-top:6px; }
+    /* registro da refeição (suco e saladas) */
+    .reg-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+    .reg-row select, .reg-row input { font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:9px 11px; min-width:0; }
+    .reg-row select { flex:1 1 160px; }
+    .reg-row input[type=date] { flex:0 1 150px; }
+    #sucoInput { flex:1 1 200px; }
+    .reg h3 { font-size:14px; margin:16px 0 6px; }
+    .seg { display:inline-flex; gap:3px; padding:3px; border-radius:11px; background:var(--soft); }
+    .seg button { border:0; background:none; padding:6px 12px; border-radius:8px; color:var(--muted); font-size:14px; }
+    .seg button[aria-pressed="true"] { background:var(--card); color:var(--ink); font-weight:600; }
+    .primary { border:0; border-radius:10px; padding:9px 16px; background:var(--accent); color:#fff; font-weight:600; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 10px; }
+    .chips button { border:1px solid var(--line); background:var(--card); border-radius:999px; padding:5px 11px; font-size:13px; }
+    .chips button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent); color:#fff; }
+    .reg-now { margin:0 0 8px; font-size:14px; }
+    .reg-now button { border:0; background:none; color:var(--prot); font-size:13px; margin-left:6px; }
   </style>
 </head>
 <body>
@@ -66,6 +82,154 @@
     const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
     const fmt = (n) => Number(n || 0).toLocaleString('pt-BR');
     const api = (action, opts) => fetch(`/api/admin?action=${action}`, opts).then(async (r) => ({ status: r.status, body: await r.json().catch(() => ({})) }));
+    const restNames = { '2':'Área 1 (SC)','3':'Área 2 (SC)','4':'CRHEA (SC)','6':'Central','7':'PUSP-CB','8':'Física','9':'Químicas','11':'Fac. Saúde Pública','12':'Enfermagem','13':'EACH','14':'Direito','17':'EEL Área 1','18':'Fac. Medicina','19':'Central RP','20':'Bauru','23':'EEL Área 2','1':'Piracicaba','5':'Pirassununga' };
+    const ls = {
+      get(k, d) { try { return localStorage.getItem(`admin:${k}`) ?? d; } catch { return d; } },
+      set(k, v) { try { localStorage.setItem(`admin:${k}`, v); } catch { /* modo privado */ } },
+    };
+
+    // horário de São Paulo, qualquer que seja o fuso do aparelho
+    function sp(at = new Date()) {
+      const p = Object.fromEntries(new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+        .formatToParts(at).map((x) => [x.type, x.value]));
+      return { date: `${p.day}/${p.month}/${p.year}`, iso: `${p.year}-${p.month}-${p.day}`, hhmm: `${p.hour}h${p.minute}`, min: Number(p.hour) * 60 + Number(p.minute) };
+    }
+
+    // ------------------------------------------------------------ registro da refeição
+    // A API da USP só diz "Suco" e "Saladas: Diversas": quem está no bandejão registra aqui o
+    // sabor do suco e as saladas do dia. No app, o sabor aparece ao lado do suco
+    // ("uva – registrado 17h45") e as saladas marcadas entram no lugar de "Saladas diversas".
+    // A lista de saladas vem de /receitas.json (cresce a cada cartaz alimentado pela skill).
+    const SABORES = ['uva', 'laranja', 'limão', 'maracujá', 'abacaxi', 'goiaba', 'caju', 'acerola', 'manga', 'morango', 'melancia', 'tangerina'];
+    const reg = {
+      rest: ls.get('regRest', '2'),
+      iso: sp().iso,
+      meal: sp().min >= 13 * 60 + 30 ? 'dinner' : 'lunch', // mesma virada do app
+      data: {},
+      saladas: [],          // [{ chave, nome }] das receitas
+      pick: new Set(),      // saladas marcadas (ainda não salvas)
+    };
+    const isoToBr = (iso) => iso.split('-').reverse().join('/');
+    const regField = () => `${isoToBr(reg.iso)}|${reg.meal}`;
+    const mealName = { lunch: 'almoço', dinner: 'jantar' };
+    const splitSabores = (s) => s.split('/').map((x) => x.trim().toLowerCase()).filter(Boolean);
+    const saladaNome = (k) => reg.saladas.find((s) => s.chave === k)?.nome || k;
+
+    function regPanel() {
+      const opts = Object.entries(restNames).map(([id, n]) => `<option value="${id}" ${id === reg.rest ? 'selected' : ''}>${esc(n)}</option>`).join('');
+      return `<div class="panel reg" id="regPanel"><h2>Registro da refeição</h2>
+        <div class="reg-row">
+          <select id="regRest" aria-label="Restaurante">${opts}</select>
+          <input type="date" id="regDate" value="${reg.iso}" aria-label="Dia">
+          <div class="seg" role="group" aria-label="Refeição">
+            <button type="button" data-meal="lunch">Almoço</button><button type="button" data-meal="dinner">Jantar</button>
+          </div>
+        </div>
+        <h3>Sabor do suco</h3>
+        <p class="reg-now" id="sucoNow"></p>
+        <form class="reg-row" id="sucoForm">
+          <input id="sucoInput" placeholder="uva  ou  uva/melancia" autocomplete="off" enterkeyhint="done" aria-label="Sabores">
+          <button type="submit" class="primary">Registrar</button>
+        </form>
+        <div class="chips" id="sucoChips">${SABORES.map((s) => `<button type="button" data-s="${esc(s)}">${esc(s)}</button>`).join('')}</div>
+        <h3>Saladas</h3>
+        <p class="reg-now" id="saladaNow"></p>
+        <div class="chips" id="saladaChips"></div>
+        <button type="button" class="primary" id="saladaSave">Salvar saladas</button>
+        <p class="hint">Sem nenhuma marcada, o app mostra "Saladas diversas" e faz a conta como antes.</p>
+        <h3>Últimos registros</h3>
+        <table><tbody id="regList"></tbody></table>
+      </div>`;
+    }
+
+    // fill = põe nos campos o que está registrado (não faz isso depois de um erro, para não perder o que foi marcado)
+    function renderReg(msg = '', { fill = true, bad = false, part = 'suco' } = {}) {
+      for (const b of document.querySelectorAll('#regPanel [data-meal]')) b.setAttribute('aria-pressed', String(b.dataset.meal === reg.meal));
+      const cur = reg.data[regField()] || {};
+      const note = (p) => (msg && part === p ? ` <span class="${bad ? 'bad' : 'ok'}">${esc(msg)}</span>` : '');
+      const when = `${mealName[reg.meal]} de ${isoToBr(reg.iso).slice(0, 5)}`;
+      $('#sucoNow').innerHTML = (cur.suco
+        ? `Registrado: <b>${esc(cur.suco.sabores)}</b> <span class="muted">· ${sp(new Date(cur.suco.at)).hhmm}</span><button type="button" id="sucoDel">apagar</button>`
+        : `<span class="muted">Nada registrado para o ${when}.</span>`) + note('suco');
+      $('#saladaNow').innerHTML = (cur.saladas
+        ? `Registrado: <b>${esc(cur.saladas.itens.map(saladaNome).join(', '))}</b> <span class="muted">· ${sp(new Date(cur.saladas.at)).hhmm}</span><button type="button" id="saladaDel">limpar</button>`
+        : `<span class="muted">Nenhuma marcada para o ${when}: "Saladas diversas".</span>`) + note('saladas');
+      $('#sucoDel')?.addEventListener('click', () => saveReg({ suco: '' }));
+      $('#saladaDel')?.addEventListener('click', () => saveReg({ saladas: [] }));
+      if (fill) {
+        $('#sucoInput').value = cur.suco ? cur.suco.sabores : '';
+        reg.pick = new Set(cur.saladas ? cur.saladas.itens : []);
+      }
+      syncChips();
+      renderSaladaChips();
+      const recent = Object.entries(reg.data)
+        .map(([field, r]) => [field, r, [r.suco?.at, r.saladas?.at].filter(Boolean).sort().pop() || ''])
+        .sort((a, b) => b[2].localeCompare(a[2])).slice(0, 8);
+      $('#regList').innerHTML = recent.map(([field, r, at]) => {
+        const [date, meal] = field.split('|');
+        return `<tr><td>${esc(date.slice(0, 5))} · ${mealName[meal] || esc(meal)}</td><td>${esc(r.suco?.sabores || '—')}</td>
+          <td class="muted">${esc(r.saladas ? r.saladas.itens.map(saladaNome).join(', ') : '—')}</td><td class="num muted">${at ? sp(new Date(at)).hhmm : ''}</td></tr>`;
+      }).join('') || '<tr><td class="muted">nada registrado ainda</td></tr>';
+    }
+
+    function syncChips() {
+      const chosen = splitSabores($('#sucoInput').value);
+      for (const b of document.querySelectorAll('#sucoChips button')) b.setAttribute('aria-pressed', String(chosen.includes(b.dataset.s)));
+    }
+
+    function renderSaladaChips() {
+      // saladas já registradas que saíram das receitas continuam aparecendo
+      const list = [...reg.saladas, ...[...reg.pick].filter((k) => !reg.saladas.some((s) => s.chave === k)).map((k) => ({ chave: k, nome: k }))];
+      $('#saladaChips').innerHTML = list.map((s) => `<button type="button" data-k="${esc(s.chave)}" aria-pressed="${reg.pick.has(s.chave)}">${esc(s.nome)}</button>`).join('')
+        || '<span class="muted">Nenhuma salada nas receitas ainda.</span>';
+    }
+
+    async function loadReg() {
+      const [{ status, body }, receitas] = await Promise.all([
+        api(`registro&id=${encodeURIComponent(reg.rest)}`),
+        reg.saladas.length ? null : fetch('/receitas.json').then((r) => r.json()).catch(() => null),
+      ]);
+      if (receitas) {
+        reg.saladas = (receitas.receitas || []).filter((r) => r.tipo === 'salada' && r.nome)
+          .map((r) => ({ chave: r.chave, nome: r.nome })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      }
+      reg.data = status === 200 ? body.registros || {} : {};
+      renderReg(status === 200 ? '' : (body.error || 'não deu para carregar'), { bad: status !== 200 });
+    }
+
+    async function saveReg(patch) {
+      const field = regField();
+      const [date, meal] = field.split('|');
+      const part = 'saladas' in patch ? 'saladas' : 'suco';
+      const { status, body } = await api('registro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ restaurant: reg.rest, date, meal, ...patch }) });
+      if (status !== 200) return renderReg(body.error || 'erro ao registrar', { fill: false, bad: true, part });
+      if (body.registro?.suco || body.registro?.saladas) reg.data[field] = body.registro; else delete reg.data[field];
+      const emptied = part === 'suco' ? !patch.suco.trim() : !patch.saladas.length;
+      renderReg(emptied ? '✓ apagado' : '✓ registrado', { part });
+    }
+
+    function bindReg() {
+      $('#regRest').onchange = (e) => { reg.rest = e.target.value; ls.set('regRest', reg.rest); loadReg(); };
+      $('#regDate').onchange = (e) => { if (e.target.value) { reg.iso = e.target.value; renderReg(); } };
+      for (const b of document.querySelectorAll('#regPanel [data-meal]')) b.onclick = () => { reg.meal = b.dataset.meal; renderReg(); };
+      $('#sucoInput').oninput = syncChips;
+      $('#sucoChips').onclick = (e) => {
+        const s = e.target.closest('[data-s]')?.dataset.s;
+        if (!s) return;
+        const chosen = splitSabores($('#sucoInput').value);
+        $('#sucoInput').value = (chosen.includes(s) ? chosen.filter((x) => x !== s) : [...chosen, s]).join('/');
+        syncChips();
+      };
+      $('#sucoForm').onsubmit = (e) => { e.preventDefault(); saveReg({ suco: $('#sucoInput').value }); };
+      $('#saladaChips').onclick = (e) => {
+        const k = e.target.closest('[data-k]')?.dataset.k;
+        if (!k) return;
+        reg.pick.has(k) ? reg.pick.delete(k) : reg.pick.add(k);
+        renderSaladaChips();
+      };
+      $('#saladaSave').onclick = () => saveReg({ saladas: [...reg.pick] });
+      loadReg();
+    }
 
     async function boot() {
       const { body } = await api('session');
@@ -107,7 +271,6 @@
           <div class="bar" style="height:${Math.round((d.views / maxV) * 84)}px"></div><div class="lab">${day}</div></div>`;
       }).join('');
 
-      const restNames = { '2':'Área 1 (SC)','3':'Área 2 (SC)','4':'CRHEA (SC)','6':'Central','7':'PUSP-CB','8':'Física','9':'Químicas','11':'Fac. Saúde Pública','12':'Enfermagem','13':'EACH','14':'Direito','17':'EEL Área 1','18':'Fac. Medicina','19':'Central RP','20':'Bauru','23':'EEL Área 2','1':'Piracicaba','5':'Pirassununga' };
       const rankRows = (obj, name) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,12)
         .map(([k,v]) => `<tr><td>${esc(name ? name(k) : k)}</td><td class="num">${fmt(v)}</td></tr>`).join('') || '<tr><td class="muted" colspan="2">sem dados ainda</td></tr>';
 
@@ -143,6 +306,8 @@
           <div><a href="/api/admin?action=menus" download style="font-size:13px">⬇ cardápios (JSON)</a> · <button id="refresh">↻ atualizar</button> · <button id="logout">sair</button></div>
         </div>
         <p class="sub">Armazenamento: ${esc(s.backend)}${backendWarn} · atualizado ${new Date(s.generatedAt).toLocaleTimeString('pt-BR')}</p>
+
+        ${regPanel()}
 
         <div class="grid">
           <div class="kpi"><div class="n live">${fmt(s.activeNow)}</div><div class="l">online agora (5 min)</div></div>
@@ -188,6 +353,7 @@
       `;
       $('#logout').onclick = async () => { await api('logout', { method: 'POST' }); renderLogin('Você saiu.'); };
       $('#refresh').onclick = () => renderDashboard(days);
+      bindReg();
     }
 
     boot();

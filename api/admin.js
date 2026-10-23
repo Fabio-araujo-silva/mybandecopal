@@ -1,8 +1,9 @@
 import { adminConfigured, checkPassword, clearCookie, isAdmin, readJson, registerFail, sessionCookie, tooManyFails } from '../lib/auth.js';
 import { readStats } from '../lib/stats.js';
 import { listArchive } from '../lib/archive.js';
+import { readRegistros, saveRegistro } from '../lib/registro.js';
 
-// /api/admin?action=login|logout|stats|session
+// /api/admin?action=login|logout|stats|session|menus|registro
 export default async function handler(req, res) {
   const action = new URL(req.url, 'http://x').searchParams.get('action') || 'stats';
 
@@ -43,6 +44,22 @@ export default async function handler(req, res) {
       res.status(200).end(JSON.stringify({ geradoEm: new Date().toISOString(), total: archive.length, cardapios: archive }, null, 2));
     } catch (err) {
       res.status(500).json({ error: String(err.message || err) });
+    }
+    return;
+  }
+
+  // registro da refeição (sabor do suco, saladas): GET lê os do restaurante, POST grava
+  if (action === 'registro') {
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      if (req.method === 'POST') {
+        const registro = await saveRegistro(await readJson(req));
+        res.status(200).json({ ok: true, registro });
+      } else {
+        res.status(200).json({ registros: await readRegistros(new URL(req.url, 'http://x').searchParams.get('id') || '2') });
+      }
+    } catch (err) {
+      res.status(400).json({ error: String(err.message || err) });
     }
     return;
   }

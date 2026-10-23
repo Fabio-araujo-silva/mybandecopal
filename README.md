@@ -51,12 +51,26 @@ O cardápio vem da **mesma API que o app oficial Cardápio+ USP usa**.
 - `public/nutrition.js` quebra o texto do cardápio (que vem em formatos diferentes por campus) em
   itens, reconhece cada prato por regras (`RULES`) e o associa a uma receita (`DISHES`) feita de
   alimentos da TACO, por 100 g.
-- O que a TACO não tem (proteína de soja, macarrão cozido, refresco, picolé…) está em `EXTRAS`,
-  derivado da própria TACO quando possível e marcado como "estimativa" na tela.
+- O que a TACO não tem (proteína de soja, macarrão cozido, leite líquido, catchup…) está em
+  `EXTRAS`, com valores da [TBCA 7.3](https://www.tbca.net.br/) (FCF-USP/FoRC) e o código de cada
+  item. Exceções medidas no bandejão: picolé (58 kcal/unidade) e suco (53 kcal/200 ml com açúcar,
+  39 sem).
+- `public/receitas.json` guarda as receitas lidas no cartaz de ingredientes do bandejão: refinam
+  pratos de `DISHES` ou criam novos (com regra de texto própria). Do cartaz só valem os
+  ingredientes; kcal e macros continuam vindo da TACO/TBCA. `scripts/taco-busca.mjs "termo"` acha
+  os ids para montar uma receita.
 - Cada prato tem medidas caseiras e uma quantidade padrão. Pão e suco não entram por padrão (o
   minipão só entra sozinho nas refeições com hambúrguer).
 - `node --env-file=.env scripts/check-menus.mjs` baixa os cardápios de todos os restaurantes e lista
   os itens que nenhuma regra reconheceu.
+
+### Registro da refeição (/admin)
+
+A API da USP só diz "Suco" e "Saladas: Diversas". Quem está no bandejão registra no /admin o sabor
+do suco ("uva/melancia") e marca as saladas do dia (a lista vem das saladas de `receitas.json`).
+No app, o sabor aparece ao lado do suco ("uva – registrado 17h45") e as saladas marcadas entram no
+lugar de "Saladas diversas"; sem registro, tudo continua como antes. Fica no Redis em
+`mbp:registro:<restaurante>` e sai em `/api/registro?id=`.
 
 ## Rodar localmente
 
