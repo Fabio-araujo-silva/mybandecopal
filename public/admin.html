@@ -140,7 +140,7 @@
       app.innerHTML = `
         <div class="toolbar">
           <div><h1 style="margin:0">Painel</h1></div>
-          <div><button id="refresh">↻ atualizar</button> · <button id="logout">sair</button></div>
+          <div><a href="/api/admin?action=menus" download style="font-size:13px">⬇ cardápios (JSON)</a> · <button id="refresh">↻ atualizar</button> · <button id="logout">sair</button></div>
         </div>
         <p class="sub">Armazenamento: ${esc(s.backend)}${backendWarn} · atualizado ${new Date(s.generatedAt).toLocaleTimeString('pt-BR')}</p>
 

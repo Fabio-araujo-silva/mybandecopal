@@ -1,5 +1,6 @@
 import { getMenu } from '../lib/usp.js';
 import { recordUspFetch } from '../lib/stats.js';
+import { archiveMenu } from '../lib/archive.js';
 import { parseMenu } from '../public/nutrition.js';
 
 // Detecta pratos que o parser não reconheceu, para aparecerem na página /admin e virarem regra.
@@ -22,8 +23,9 @@ export default async function handler(req, res) {
     const menu = await getMenu(id);
     res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
     res.status(200).json(menu);
-    // registra a chamada à USP sem segurar a resposta (só roda quando o cache da Vercel expira)
+    // registra a chamada à USP e arquiva os cardápios (só roda quando o cache da Vercel expira)
     recordUspFetch({ restaurant: id, ok: true, ms: Date.now() - t0, generic: genericItems(menu) }).catch(() => {});
+    archiveMenu(id, menu.days).catch(() => {});
   } catch (err) {
     res.status(502).json({ error: String(err.message || err) });
     recordUspFetch({ restaurant: id, ok: false, ms: Date.now() - t0, error: String(err.message || err) }).catch(() => {});
