@@ -82,11 +82,15 @@ function unitLabel(name, q) {
   return [PLURAL[first] || first, ...rest].join(' ');
 }
 
+// a partir das 13h30 a refeição padrão vira o jantar
+const DINNER_FROM = 13 * 60 + 30;
+const isDinnerTime = ({ hour, minute }) => hour * 60 + minute >= DINNER_FROM;
+
 function spNow() {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', hourCycle: 'h23',
+    timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   }).formatToParts(new Date()).map((p) => [p.type, p.value]));
-  return { date: `${parts.day}/${parts.month}/${parts.year}`, hour: Number(parts.hour) };
+  return { date: `${parts.day}/${parts.month}/${parts.year}`, hour: Number(parts.hour), minute: Number(parts.minute) };
 }
 
 function prettyRestaurant(name) {
@@ -134,7 +138,8 @@ async function loadMenu() {
 }
 
 function pickDefaultDay() {
-  const { date, hour } = spNow();
+  const now = spNow();
+  const { date } = now;
   const days = state.menu.days;
   const isOpen = (m) => m && !parseMenu(m.menu).closed;
   let idx = days.findIndex((d) => d.date === date);
@@ -145,7 +150,7 @@ function pickDefaultDay() {
   state.dayIdx = idx;
   const day = days[idx];
   const isToday = day?.date === date;
-  let meal = isToday && hour >= 15 ? 'dinner' : 'lunch';
+  let meal = isToday && isDinnerTime(now) ? 'dinner' : 'lunch';
   if (day && !isOpen(day[meal])) meal = meal === 'lunch' ? 'dinner' : 'lunch';
   if (day && !isOpen(day[meal])) meal = 'lunch';
   state.meal = meal;
@@ -669,14 +674,17 @@ document.querySelectorAll('.meal-toggle button').forEach((b) => (b.onclick = () 
   track.meal();
 }));
 
-// página deixada aberta: ao voltar para a aba, reposiciona em hoje/refeição do horário
-// (almoço até 15h, jantar depois), a menos que a pessoa tenha escolhido dia/refeição na mão
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible' || state.manual || !state.menu) return;
+// reposiciona em hoje/refeição do horário (jantar a partir das 13h30), a menos que a pessoa
+// tenha escolhido dia/refeição na mão. Roda ao voltar para a aba e de minuto em minuto,
+// então a virada para o jantar acontece sozinha mesmo com a página aberta.
+function autoSwitchMeal() {
+  if (state.manual || !state.menu || document.visibilityState !== 'visible') return;
   const before = `${state.dayIdx}|${state.meal}`;
   pickDefaultDay();
   if (`${state.dayIdx}|${state.meal}` !== before) { buildMeal(); render(); }
-});
+}
+document.addEventListener('visibilitychange', autoSwitchMeal);
+setInterval(autoSwitchMeal, 60000);
 $('#restaurantBtn').onclick = openRestaurantSheet;
 $('#resetBtn').onclick = () => {
   state.portions = {};

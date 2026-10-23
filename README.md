@@ -4,7 +4,7 @@
 
 🌐 **https://mybandecopal.vercel.app**
 
-Abre direto na refeição do momento (almoço até as 15h, jantar depois) e já mostra as calorias, a
+Abre direto na refeição do momento (almoço até as 13h30, jantar depois) e já mostra as calorias, a
 proteína, o carboidrato e a gordura de uma bandeja média. Se você pegou mais arroz ou dispensou a
 sobremesa, é só ajustar cada item — em conchas, colheres, fatias, hambúrgueres… as medidas que a
 tia usa.
