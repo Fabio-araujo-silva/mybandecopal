@@ -26,6 +26,8 @@ export default async function handler(req, res) {
     // registra a consulta à USP e, se o cardápio mudou, arquiva e procura pratos não reconhecidos
     if (fetched) await recordUspFetch({ restaurant: id, ok: !error, ms, error, generic: changed ? genericItems(menu) : [] }).catch(() => {});
     if (changed) await archiveMenu(id, menu.days).catch(() => {});
+    // diagnóstico: de onde veio este cardápio
+    res.setHeader('X-Fonte-Cardapio', !fetched ? 'redis' : error ? 'redis (usp fora)' : 'usp');
     res.setHeader('Cache-Control', 's-maxage=900, stale-while-revalidate=3600');
     res.status(200).json(menu);
   } catch (err) {
