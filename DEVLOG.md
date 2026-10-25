@@ -5,3 +5,4 @@ Notas de desenvolvimento.
 - chore: sobe deps e arruma o lockfile (24/10)
 - feat(relatorio): export CSV das mudancas da semana (24/10)
 - fix: macro do arroz errado por causa da porcao TACO (25/10)
+- docs: README com prints do app (25/10)
