@@ -9,3 +9,4 @@ Notas de desenvolvimento.
 - feat: linha do tempo do cardapio da semana (25/10)
 - perf: home serve do cache quando a USP demora (25/10)
 - chore: cron de cache no horario do almoco (25/10)
+- docs: README com prints do app (26/10)
