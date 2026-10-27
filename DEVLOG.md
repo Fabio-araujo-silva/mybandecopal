@@ -11,3 +11,4 @@ Notas de desenvolvimento.
 - chore: cron de cache no horario do almoco (25/10)
 - docs: README com prints do app (26/10)
 - feat: linha do tempo do cardapio da semana (26/10)
+- feat(relatorio): export CSV das mudancas da semana (27/10)
