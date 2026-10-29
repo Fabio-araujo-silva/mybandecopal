@@ -14,3 +14,4 @@ Notas de desenvolvimento.
 - feat(relatorio): export CSV das mudancas da semana (27/10)
 - fix: macro do arroz errado por causa da porcao TACO (29/10)
 - chore: sobe deps e arruma o lockfile (29/10)
+- feat: marca o restaurante favorito no app (29/10)
