@@ -15,3 +15,4 @@ Notas de desenvolvimento.
 - fix: macro do arroz errado por causa da porcao TACO (29/10)
 - chore: sobe deps e arruma o lockfile (29/10)
 - feat: marca o restaurante favorito no app (29/10)
+- fix: PUE nao aparecia na lista de restaurantes (29/10)
