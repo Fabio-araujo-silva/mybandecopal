@@ -12,3 +12,4 @@ Notas de desenvolvimento.
 - docs: README com prints do app (26/10)
 - feat: linha do tempo do cardapio da semana (26/10)
 - feat(relatorio): export CSV das mudancas da semana (27/10)
+- fix: macro do arroz errado por causa da porcao TACO (29/10)
