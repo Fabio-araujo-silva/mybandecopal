@@ -18,3 +18,4 @@ Notas de desenvolvimento.
 - fix: PUE nao aparecia na lista de restaurantes (29/10)
 - feat: linha do tempo do cardapio da semana (30/10)
 - chore: cron de cache no horario do almoco (30/10)
+- fix: macro do arroz errado por causa da porcao TACO (30/10)
