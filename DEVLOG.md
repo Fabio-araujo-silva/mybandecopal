@@ -16,3 +16,4 @@ Notas de desenvolvimento.
 - chore: sobe deps e arruma o lockfile (29/10)
 - feat: marca o restaurante favorito no app (29/10)
 - fix: PUE nao aparecia na lista de restaurantes (29/10)
+- feat: linha do tempo do cardapio da semana (30/10)
