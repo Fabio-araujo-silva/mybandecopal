@@ -17,3 +17,4 @@ Notas de desenvolvimento.
 - feat: marca o restaurante favorito no app (29/10)
 - fix: PUE nao aparecia na lista de restaurantes (29/10)
 - feat: linha do tempo do cardapio da semana (30/10)
+- chore: cron de cache no horario do almoco (30/10)
