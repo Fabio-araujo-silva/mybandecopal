@@ -20,3 +20,4 @@ Notas de desenvolvimento.
 - chore: cron de cache no horario do almoco (30/10)
 - fix: macro do arroz errado por causa da porcao TACO (30/10)
 - feat: linha do tempo do cardapio da semana (02/11)
+- perf: home serve do cache quando a USP demora (02/11)
