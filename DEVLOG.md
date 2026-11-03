@@ -21,3 +21,4 @@ Notas de desenvolvimento.
 - fix: macro do arroz errado por causa da porcao TACO (30/10)
 - feat: linha do tempo do cardapio da semana (02/11)
 - perf: home serve do cache quando a USP demora (02/11)
+- test: cobre o parsing do cardapio da USP (03/11)
