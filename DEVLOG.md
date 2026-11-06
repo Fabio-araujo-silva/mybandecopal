@@ -23,3 +23,4 @@ Notas de desenvolvimento.
 - perf: home serve do cache quando a USP demora (02/11)
 - test: cobre o parsing do cardapio da USP (03/11)
 - feat: aviso quando o cardapio de amanha ainda nao saiu (06/11)
+- feat: marca o restaurante favorito no app (06/11)
