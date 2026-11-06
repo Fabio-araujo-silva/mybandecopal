@@ -24,3 +24,4 @@ Notas de desenvolvimento.
 - test: cobre o parsing do cardapio da USP (03/11)
 - feat: aviso quando o cardapio de amanha ainda nao saiu (06/11)
 - feat: marca o restaurante favorito no app (06/11)
+- fix: sobremesa sem kcal quebrou o total da refeicao (06/11)
