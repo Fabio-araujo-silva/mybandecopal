@@ -27,3 +27,4 @@ Notas de desenvolvimento.
 - fix: sobremesa sem kcal quebrou o total da refeicao (06/11)
 - fix(admin): aprovar mudanca nao apaga o motivo (07/11)
 - fix: macro do arroz errado por causa da porcao TACO (09/11)
+- chore: sobe deps e arruma o lockfile (09/11)
