@@ -31,3 +31,4 @@ Notas de desenvolvimento.
 - docs: README com prints do app (10/11)
 - fix: macro do arroz errado por causa da porcao TACO (10/11)
 - fix: restaurante vazio nao quebra a lista (10/11)
+- feat: linha do tempo do cardapio da semana (10/11)
