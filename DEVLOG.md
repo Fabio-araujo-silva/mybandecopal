@@ -29,3 +29,4 @@ Notas de desenvolvimento.
 - fix: macro do arroz errado por causa da porcao TACO (09/11)
 - chore: sobe deps e arruma o lockfile (09/11)
 - docs: README com prints do app (10/11)
+- fix: macro do arroz errado por causa da porcao TACO (10/11)
