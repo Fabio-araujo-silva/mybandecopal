@@ -34,3 +34,4 @@ Notas de desenvolvimento.
 - feat: linha do tempo do cardapio da semana (10/11)
 - fix(admin): aprovar mudanca nao apaga o motivo (11/11)
 - feat(relatorio): export CSV das mudancas da semana (11/11)
+- fix: sobremesa sem kcal quebrou o total da refeicao (12/11)
