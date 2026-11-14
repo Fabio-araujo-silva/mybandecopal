@@ -35,3 +35,4 @@ Notas de desenvolvimento.
 - fix(admin): aprovar mudanca nao apaga o motivo (11/11)
 - feat(relatorio): export CSV das mudancas da semana (11/11)
 - fix: sobremesa sem kcal quebrou o total da refeicao (12/11)
+- fix: restaurante vazio nao quebra a lista (14/11)
