@@ -36,3 +36,4 @@ Notas de desenvolvimento.
 - feat(relatorio): export CSV das mudancas da semana (11/11)
 - fix: sobremesa sem kcal quebrou o total da refeicao (12/11)
 - fix: restaurante vazio nao quebra a lista (14/11)
+- fix: sobremesa sem kcal quebrou o total da refeicao (15/11)
