@@ -38,3 +38,4 @@ Notas de desenvolvimento.
 - fix: restaurante vazio nao quebra a lista (14/11)
 - fix: sobremesa sem kcal quebrou o total da refeicao (15/11)
 - fix: restaurante vazio nao quebra a lista (15/11)
+- docs: README com prints do app (15/11)
